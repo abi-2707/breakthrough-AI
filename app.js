@@ -2068,27 +2068,33 @@ function renderDetectedSign(prediction) {
   const confEl = document.getElementById('bridge-active-confidence');
   const sentenceContainer = document.getElementById('bridge-live-sentence');
 
+  const displayLabel = prediction.emoji ? `${prediction.emoji} ${prediction.sign}` : prediction.sign;
+
   if (activeChip && signTextEl && confEl) {
     activeChip.classList.remove('hidden');
-    signTextEl.textContent = prediction.sign.toUpperCase();
+    signTextEl.textContent = displayLabel;
     confEl.textContent = `${prediction.confidence}%`;
   }
 
   // Append token to live sentence builder
-  signSentenceTokens.push(prediction.sign.toUpperCase());
+  signSentenceTokens.push(displayLabel);
   if (sentenceContainer) {
-    sentenceContainer.innerHTML = signSentenceTokens.map((token, i) => `
-      <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-[#B8A6E8] text-xs font-black text-[#3A3552] shadow-sm animate-rise">
+    sentenceContainer.innerHTML = signSentenceTokens.map((token) => `
+      <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#B8A6E8] text-xs font-black text-[#3A3552] shadow-sm animate-rise">
         ${token}
       </span>
     `).join(' ');
+    // Auto-scroll to end
+    sentenceContainer.scrollLeft = sentenceContainer.scrollWidth;
   }
 
   // Voice output announcement for hospital officer
   if ('speechSynthesis' in window) {
-    const utter = new SpeechSynthesisUtterance(prediction.sign);
+    const speakStr = prediction.speechText || prediction.sign;
+    const utter = new SpeechSynthesisUtterance(speakStr);
     utter.rate = 1.0;
     utter.pitch = 1.0;
+    window.speechSynthesis.cancel(); // Cancel any lingering utterance
     window.speechSynthesis.speak(utter);
   }
 }

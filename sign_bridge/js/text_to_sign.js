@@ -16,19 +16,37 @@ class TextToSignEngine {
 
     // Supported medical & conversational dictionary
     this.dictionary = {
-      // Core Medical Phrases
+      // Core Medical & Everyday Demo Gestures
+      "yes": { label: "THUMBS UP (YES)", icon: "thumbs-up", desc: "Thumb extended straight up, other 4 fingers curled into a fist", color: "#A8E6CF" },
+      "agree": { label: "THUMBS UP (AGREE)", icon: "thumbs-up", desc: "Thumb extended straight up, agreeing with officer", color: "#A8E6CF" },
+      "no": { label: "THUMBS DOWN (NO)", icon: "thumbs-down", desc: "Thumb extended straight down, indicating no or discomfort", color: "#FFB3B3" },
+      "disagree": { label: "THUMBS DOWN (DISAGREE)", icon: "thumbs-down", desc: "Thumb extended straight down", color: "#FFB3B3" },
+      "ok": { label: "OK HAND", icon: "check-circle", desc: "Thumb & index fingertip touching in loop, 3 fingers extended", color: "#A8E6CF" },
+      "victory": { label: "VICTORY / PEACE", icon: "hand", desc: "Index & middle fingers extended in a V-shape, peace sign", color: "#B8A6E8" },
+      "peace": { label: "VICTORY / PEACE", icon: "hand", desc: "Index & middle fingers extended in a V-shape", color: "#B8A6E8" },
+      "two": { label: "TWO (V-SHAPE)", icon: "hand", desc: "Index and middle fingers extended", color: "#B8A6E8" },
+      "love": { label: "I LOVE YOU (ILY)", icon: "heart", desc: "Thumb, index, and pinky extended; middle and ring curled", color: "#FFB3D9" },
+      "rock": { label: "ROCK ON (HORNS)", icon: "flame", desc: "Index & pinky extended, middle & ring curled, thumb folded", color: "#FFD3B0" },
+      "call": { label: "CALL ME (SHAKA)", icon: "phone-call", desc: "Thumb & pinky extended outward, 3 middle fingers curled", color: "#A8D8F0" },
+      "contact": { label: "CALL ME / CONTACT", icon: "phone", desc: "Thumb & pinky extended outward", color: "#A8D8F0" },
+      "hello": { label: "HELLO (OPEN PALM)", icon: "hand", desc: "All 5 fingers extended upright and open facing forward", color: "#A8E6CF" },
+      "hi": { label: "HI (OPEN PALM)", icon: "hand", desc: "All 5 fingers extended upright facing forward", color: "#A8E6CF" },
+      "stop": { label: "STOP (OPEN PALM)", icon: "octagon", desc: "Open palm facing forward firmly to pause or stop", color: "#FFB3B3" },
+      "fist": { label: "RAISED FIST", icon: "shield", desc: "All 5 fingers curled tight into a solid fist", color: "#D1C4E9" },
+      "power": { label: "RAISED FIST / SOLID", icon: "shield", desc: "Solid fist held up firmly", color: "#D1C4E9" },
+      "question": { label: "POINTING UP", icon: "help-circle", desc: "Index finger extended straight up for attention/question", color: "#B8A6E8" },
+      "attention": { label: "POINTING UP", icon: "alert-circle", desc: "Index finger pointing up", color: "#B8A6E8" },
+      "thanks": { label: "GRATITUDE / THANK YOU", icon: "heart-handshake", desc: "Both palms pressed together with fingers up in gratitude", color: "#A8E6CF" },
+      "thank": { label: "GRATITUDE / THANK YOU", icon: "heart-handshake", desc: "Both palms pressed together in gratitude", color: "#A8E6CF" },
+      "clap": { label: "APPLAUSE", icon: "sparkles", desc: "Both hands clapping together in applause", color: "#FFD3B0" },
+      "applause": { label: "APPLAUSE", icon: "sparkles", desc: "Both hands clapping together", color: "#FFD3B0" },
+      // Medical core
       "pain": { label: "PAIN", icon: "activity", desc: "Both index fingers pointing towards location of discomfort", color: "#FFB3B3" },
       "help": { label: "HELP", icon: "hand-helping", desc: "Flat left palm supporting a 'thumbs-up' right fist lifting upward", color: "#B8A6E8" },
-      "water": { label: "WATER", icon: "droplets", desc: "'W' handshape (3 fingers up) tapping gently at the chin/lips", color: "#A8D8F0" },
+      "water": { label: "WATER", icon: "droplets", desc: "'W' handshape (3 fingers up) tapping gently at chin/lips", color: "#A8D8F0" },
       "doctor": { label: "DOCTOR", icon: "stethoscope", desc: "Right fingertips tap inside wrist where a pulse is taken", color: "#A8E6CF" },
-      "yes": { label: "YES", icon: "check", desc: "Fist nodding up and down like a head nod", color: "#A8E6CF" },
-      "no": { label: "NO", icon: "x", desc: "Index and middle fingers snap down onto the thumb", color: "#FFB3B3" },
-      "medicine": { label: "MEDICINE", icon: "pill", desc: "Right middle finger pivots gently in the open palm of left hand", color: "#B8A6E8" },
-      "emergency": { label: "EMERGENCY", icon: "alert-triangle", desc: "'E' handshape shaking side to side with urgency", color: "#FFD3B0" },
-      "nurse": { label: "NURSE", icon: "heart-pulse", desc: "Two fingers tap the wrist like taking a pulse", color: "#A8D8F0" },
-      "restroom": { label: "RESTROOM", icon: "door-closed", desc: "'T' handshape shaking side to side", color: "#C9BFF0" },
-      "ok": { label: "OK", icon: "thumbs-up", desc: "Fingerspell O then K, or clear thumbs up", color: "#A8E6CF" },
-      "stop": { label: "STOP", icon: "octagon", desc: "Left palm flat, right hand chops down onto the palm", color: "#FFB3B3" }
+      "medicine": { label: "MEDICINE", icon: "pill", desc: "Right middle finger pivots gently in open palm of left hand", color: "#B8A6E8" },
+      "nurse": { label: "NURSE", icon: "heart-pulse", desc: "Two fingers tap the wrist like taking a pulse", color: "#A8D8F0" }
     };
   }
 
