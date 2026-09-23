@@ -730,8 +730,27 @@ function openAddPatientModal() {
   if (modal) {
     modal.classList.remove('hidden');
     modal.classList.add('flex');
-    document.getElementById('new-patient-name').value = '';
-    document.getElementById('new-patient-condition').value = '';
+    const nameEl = document.getElementById('new-patient-name');
+    if (nameEl) nameEl.value = '';
+    const ageEl = document.getElementById('new-patient-age');
+    if (ageEl) ageEl.value = '';
+    const condEl = document.getElementById('new-patient-condition');
+    if (condEl) condEl.value = '';
+
+    // Populate caretaker options if Coordinator is logged in
+    const cgGroup = document.getElementById('new-patient-caregiver-group');
+    const cgSelect = document.getElementById('new-patient-caregiver-select');
+    if (cgGroup && cgSelect) {
+      if (appState.currentUser && appState.currentUser.role === 'coordinator') {
+        cgGroup.classList.remove('hidden');
+        const caregivers = getCaregivers();
+        cgSelect.innerHTML = '<option value="">No caregiver assigned initially</option>' +
+          caregivers.map(cg => `<option value="${cg.id}">${cg.name} (${cg.id})</option>`).join('');
+      } else {
+        cgGroup.classList.add('hidden');
+      }
+    }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
   }
 }
 
@@ -746,13 +765,13 @@ function closeAddPatientModal() {
 // Submit Add Patient
 function submitAddPatient(e) {
   e.preventDefault();
-  if (!appState.currentUser || appState.currentUser.role !== 'caregiver') {
-    showGlassToast('Only caregivers can add patients.', 'error');
+  if (!appState.currentUser || !['caregiver', 'coordinator'].includes(appState.currentUser.role)) {
+    showGlassToast('Only coordinators and caregivers can register patients.', 'error');
     return;
   }
   const name = document.getElementById('new-patient-name').value.trim();
-  const id = `patient-${Date.now()}`;
-  const age = 0;
+  const rawAge = document.getElementById('new-patient-age')?.value;
+  const age = rawAge ? parseInt(rawAge, 10) : 30;
   const condition = document.getElementById('new-patient-condition').value.trim();
 
   if (!name || !condition) {
@@ -760,18 +779,33 @@ function submitAddPatient(e) {
     return;
   }
 
+  const id = `patient-${Date.now()}`;
+  let caregiverId = '';
+  let caregiverObj = null;
+
+  if (appState.currentUser.role === 'caregiver') {
+    caregiverId = appState.currentUser.id;
+    caregiverObj = { id: appState.currentUser.id, name: appState.currentUser.name };
+  } else if (appState.currentUser.role === 'coordinator') {
+    const cgSelect = document.getElementById('new-patient-caregiver-select');
+    const selectedCgId = cgSelect ? cgSelect.value : '';
+    if (selectedCgId) {
+      const foundCg = getCaregivers().find(c => c.id === selectedCgId);
+      caregiverId = selectedCgId;
+      caregiverObj = foundCg ? { id: foundCg.id, name: foundCg.name } : { id: selectedCgId, name: selectedCgId };
+    }
+  }
+
   const patients = getPatients();
 
   const newPatient = {
     id: id,
     name: name,
-    age: age,
+    age: isNaN(age) ? 30 : age,
     condition: condition,
     joinedDate: 'Today',
-    caregiverId: appState.currentUser && appState.currentUser.role === 'caregiver' ? appState.currentUser.id : '',
-    caregiver: appState.currentUser && appState.currentUser.role === 'caregiver'
-      ? { id: appState.currentUser.id, name: appState.currentUser.name }
-      : null,
+    caregiverId: caregiverId,
+    caregiver: caregiverObj,
     prescriptions: []
   };
 
@@ -785,7 +819,7 @@ function submitAddPatient(e) {
   } else {
     renderCoordinatorDashboard();
   }
-  showGlassToast(`Patient "${name}" (${id}) registered successfully!`, 'success');
+  showGlassToast(`Patient "${name}" registered successfully!`, 'success');
 }
 
 function getVisibleCaregiverPatients() {
@@ -922,7 +956,8 @@ function assignCaregiver(event) {
   event.preventDefault();
   const id = document.getElementById('caregiver-id').value.trim().toLowerCase();
   const patients = getPatients();
-  const patient = patients.find(p => p.id.toLowerCase() === appState.selectedPatientId.toLowerCase());
+  const currentSelId = (appState.selectedPatientId || '').toLowerCase();
+  const patient = patients.find(p => p.id.toLowerCase() === currentSelId);
   const caregiverAccount = getCaregivers().find(item => item.id === id);
 
   if (!patient || !id) {
@@ -1036,7 +1071,8 @@ function submitPrescription(e) {
 // Delete a prescription
 function deletePrescription(rxId) {
   const patients = getPatients();
-  const patient = patients.find(p => p.id.toLowerCase() === appState.selectedPatientId.toLowerCase());
+  const currentSelId = (appState.selectedPatientId || '').toLowerCase();
+  const patient = patients.find(p => p.id.toLowerCase() === currentSelId);
   if (!patient || !patient.prescriptions) return;
 
   patient.prescriptions = patient.prescriptions.filter(r => r.id !== rxId);
@@ -1269,17 +1305,19 @@ function renderCoordinatorDashboard() {
   }
   
   // Match selected patient case-insensitively
-  let selectedPatient = patients.find(p => p.id.toLowerCase() === appState.selectedPatientId.toLowerCase());
+  const currentSelId = (appState.selectedPatientId || '').toLowerCase();
+  let selectedPatient = patients.find(p => p.id.toLowerCase() === currentSelId);
   if (!selectedPatient && patients.length > 0) {
     selectedPatient = patients[0];
     appState.selectedPatientId = selectedPatient.id;
   }
 
   // Update target patient select dropdown on prescription form
+  const activeIdLower = (appState.selectedPatientId || '').toLowerCase();
   const targetPatientSelect = document.getElementById('rx-target-patient');
   if (targetPatientSelect) {
     targetPatientSelect.innerHTML = patients.map(p => `
-      <option value="${p.id}" ${p.id.toLowerCase() === appState.selectedPatientId.toLowerCase() ? 'selected' : ''}>
+      <option value="${p.id}" ${p.id.toLowerCase() === activeIdLower ? 'selected' : ''}>
         ${p.name} (${p.id})
       </option>
     `).join('');
@@ -1300,7 +1338,7 @@ function renderCoordinatorDashboard() {
   const rosterContainer = document.getElementById('coordinator-patient-roster');
   if (rosterContainer) {
     rosterContainer.innerHTML = patients.map(p => {
-      const isSelected = p.id.toLowerCase() === appState.selectedPatientId.toLowerCase();
+      const isSelected = p.id.toLowerCase() === activeIdLower;
       const pRxs = p.prescriptions || [];
       const pendingCount = pRxs.filter(r => r.status === 'pending').length;
 
