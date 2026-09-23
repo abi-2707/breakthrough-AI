@@ -1650,8 +1650,8 @@ async function startSignBridgeSession() {
 
     if (!handTrackerInstance && window.HandTrackerService) {
       handTrackerInstance = new window.HandTrackerService(videoEl, canvasEl);
-      await handTrackerInstance.init(({ featureVector, handsDetected }) => {
-        handleBridgeLandmarksFrame(featureVector, handsDetected);
+      await handTrackerInstance.init(({ featureVector, handsDetected, rawResults }) => {
+        handleBridgeLandmarksFrame(featureVector, handsDetected, rawResults);
       });
     }
 
@@ -1713,7 +1713,7 @@ function stopSignBridgeSession() {
   if (window.lucide) window.lucide.createIcons();
 }
 
-function handleBridgeLandmarksFrame(featureVector, handsDetected) {
+function handleBridgeLandmarksFrame(featureVector, handsDetected, rawResults) {
   const handsCountEl = document.getElementById('bridge-hands-count');
   if (handsCountEl) {
     handsCountEl.textContent = `${handsDetected} Hand${handsDetected === 1 ? '' : 's'} Tracked`;
@@ -1721,7 +1721,7 @@ function handleBridgeLandmarksFrame(featureVector, handsDetected) {
 
   if (!signClassifierInstance) return;
 
-  const result = signClassifierInstance.pushFrame(featureVector, handsDetected);
+  const result = signClassifierInstance.pushFrame(featureVector, handsDetected, rawResults);
   if (result) {
     renderDetectedSign(result);
   }
