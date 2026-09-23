@@ -76,3 +76,35 @@ Only the following accounts can authenticate into the platform:
 ## 🎙️ Voice Updates
 
 Caregivers can record voice updates directly from their dashboard. The audio note is compressed and synced to the coordinator portal, where Dr. Saranraj can listen to patient updates in real time.
+
+---
+
+## 🤟 Real-Time Sign Language Communication Bridge
+
+The platform includes a bidirectional communication module between deaf/mute patients and medical officers:
+
+### 1. Dual-Pipeline Architecture
+1. **Sign &rarr; Text (Patient &rarr; Staff)**:
+   * Real-time 3D hand tracking via **MediaPipe Hands** (`sign_bridge/js/hand_tracker.js`).
+   * Extracts 21 keypoints per hand (up to 2 hands, 126 coordinates), normalized relative to the wrist for scale and position invariance.
+   * Real-time sliding temporal window classifier (`sign_bridge/js/sign_classifier.js`) detecting core medical signs (`PAIN`, `HELP`, `WATER`, `DOCTOR`, `YES`, `NO`, `EMERGENCY`) and alphabet fingerspelling (`A-Z`).
+   * Real-time sentence builder + automated Text-to-Speech audio read-out for hospital staff.
+2. **Text &rarr; Sign (Staff &rarr; Patient)**:
+   * Hospital staff input box (`sign_bridge/js/text_to_sign.js`) with quick-response phrases.
+   * Word lexicon matcher dynamically queuing gesture animation representations.
+   * Automatic letter-by-letter fingerspelling fallback for proper nouns, dosages, and medication names.
+
+### 2. Custom Model Training & Real Dataset Plug-in
+To train or fine-tune models with full Indian Sign Language (ISL) or American Sign Language (ASL) datasets:
+1. **Collect Keypoint Data**:
+   ```bash
+   cd sign_bridge/python_ml
+   pip install -r requirements.txt
+   python extract_landmarks.py --label "pain" --num_seqs 30
+   ```
+2. **Train the Sequence Classifier**:
+   ```bash
+   python train.py
+   ```
+   * Saves model weights to `sign_bridge/python_ml/weights/sign_classifier.pth` and exports labels to `labels.json`.
+

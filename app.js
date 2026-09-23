@@ -1586,3 +1586,226 @@ window.addEventListener('storage', (e) => {
     renderCurrentView();
   }
 });
+
+// -------------------------------------------------------------
+// SIGN LANGUAGE COMMUNICATION BRIDGE MODULE (LIVE SESSION LOGIC)
+// -------------------------------------------------------------
+let handTrackerInstance = null;
+let signClassifierInstance = null;
+let textToSignInstance = null;
+let signBridgeActive = false;
+let signSentenceTokens = [];
+
+function openSignBridgeModal(role) {
+  const modal = document.getElementById('sign-bridge-modal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+
+  // Initialize Text-To-Sign engine on the display stage
+  const displayStage = document.getElementById('bridge-sign-display-stage');
+  if (displayStage && !textToSignInstance && window.TextToSignEngine) {
+    textToSignInstance = new window.TextToSignEngine(displayStage, { playbackSpeed: 1.0 });
+  }
+
+  if (window.lucide) window.lucide.createIcons();
+  showGlassToast('Sign Language Bridge active. Click Start Live Session to begin camera tracking.', 'info', 'Sign Bridge');
+}
+
+function closeSignBridgeModal() {
+  stopSignBridgeSession();
+  const modal = document.getElementById('sign-bridge-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+}
+
+async function toggleSignBridgeSession() {
+  if (signBridgeActive) {
+    stopSignBridgeSession();
+  } else {
+    await startSignBridgeSession();
+  }
+}
+
+async function startSignBridgeSession() {
+  const toggleBtn = document.getElementById('bridge-toggle-btn');
+  const toggleText = document.getElementById('bridge-toggle-btn-text');
+  const statusBadge = document.getElementById('bridge-status-badge');
+  const statusText = document.getElementById('bridge-status-text');
+  const camPlaceholder = document.getElementById('bridge-cam-placeholder');
+  const videoEl = document.getElementById('bridge-webcam');
+  const canvasEl = document.getElementById('bridge-canvas');
+
+  if (!videoEl || !canvasEl) return;
+
+  try {
+    statusBadge.className = 'badge-amber text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full flex items-center gap-1';
+    statusText.textContent = 'Initializing Camera...';
+
+    if (!signClassifierInstance && window.SignClassifierService) {
+      signClassifierInstance = new window.SignClassifierService({ bufferSize: 30, minConfidence: 0.65 });
+    }
+
+    if (!handTrackerInstance && window.HandTrackerService) {
+      handTrackerInstance = new window.HandTrackerService(videoEl, canvasEl);
+      await handTrackerInstance.init(({ featureVector, handsDetected }) => {
+        handleBridgeLandmarksFrame(featureVector, handsDetected);
+      });
+    }
+
+    await handTrackerInstance.start();
+    signBridgeActive = true;
+
+    if (camPlaceholder) camPlaceholder.classList.add('hidden');
+    toggleBtn.classList.remove('btn-flame');
+    toggleBtn.classList.add('btn-rose');
+    toggleText.textContent = 'End Session';
+    toggleBtn.querySelector('i')?.setAttribute('data-lucide', 'square');
+
+    statusBadge.className = 'badge-emerald text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full flex items-center gap-1';
+    statusText.textContent = 'Live • Tracking Active';
+
+    showGlassToast('Patient webcam online. Detecting hand gestures in real time.', 'success', 'Webcam Connected');
+  } catch (err) {
+    console.error('Failed to start sign bridge session:', err);
+    statusBadge.className = 'badge-rose text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full flex items-center gap-1';
+    statusText.textContent = 'Camera Error';
+    showGlassToast('Could not access camera for hand tracking. Please check permissions.', 'error', 'Camera Error');
+  }
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function stopSignBridgeSession() {
+  if (handTrackerInstance) {
+    handTrackerInstance.stop();
+  }
+  if (textToSignInstance) {
+    textToSignInstance.stop();
+  }
+
+  signBridgeActive = false;
+  const toggleBtn = document.getElementById('bridge-toggle-btn');
+  const toggleText = document.getElementById('bridge-toggle-btn-text');
+  const statusBadge = document.getElementById('bridge-status-badge');
+  const statusText = document.getElementById('bridge-status-text');
+  const camPlaceholder = document.getElementById('bridge-cam-placeholder');
+  const activeChip = document.getElementById('bridge-active-chip');
+  const handsCountEl = document.getElementById('bridge-hands-count');
+
+  if (camPlaceholder) camPlaceholder.classList.remove('hidden');
+  if (activeChip) activeChip.classList.add('hidden');
+  if (handsCountEl) handsCountEl.textContent = '0 Hands Tracked';
+
+  if (toggleBtn && toggleText) {
+    toggleBtn.classList.remove('btn-rose');
+    toggleBtn.classList.add('btn-flame');
+    toggleText.textContent = 'Start Live Session';
+  }
+
+  if (statusBadge && statusText) {
+    statusBadge.className = 'badge-pastel text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full flex items-center gap-1';
+    statusText.textContent = 'Session Standby';
+  }
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function handleBridgeLandmarksFrame(featureVector, handsDetected) {
+  const handsCountEl = document.getElementById('bridge-hands-count');
+  if (handsCountEl) {
+    handsCountEl.textContent = `${handsDetected} Hand${handsDetected === 1 ? '' : 's'} Tracked`;
+  }
+
+  if (!signClassifierInstance) return;
+
+  const result = signClassifierInstance.pushFrame(featureVector, handsDetected);
+  if (result) {
+    renderDetectedSign(result);
+  }
+}
+
+function renderDetectedSign(prediction) {
+  const activeChip = document.getElementById('bridge-active-chip');
+  const signTextEl = document.getElementById('bridge-active-sign-text');
+  const confEl = document.getElementById('bridge-active-confidence');
+  const sentenceContainer = document.getElementById('bridge-live-sentence');
+
+  if (activeChip && signTextEl && confEl) {
+    activeChip.classList.remove('hidden');
+    signTextEl.textContent = prediction.sign.toUpperCase();
+    confEl.textContent = `${prediction.confidence}%`;
+  }
+
+  // Append token to live sentence builder
+  signSentenceTokens.push(prediction.sign.toUpperCase());
+  if (sentenceContainer) {
+    sentenceContainer.innerHTML = signSentenceTokens.map((token, i) => `
+      <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-[#B8A6E8] text-xs font-black text-[#3A3552] shadow-sm animate-rise">
+        ${token}
+      </span>
+    `).join(' ');
+  }
+
+  // Voice output announcement for hospital officer
+  if ('speechSynthesis' in window) {
+    const utter = new SpeechSynthesisUtterance(prediction.sign);
+    utter.rate = 1.0;
+    utter.pitch = 1.0;
+    window.speechSynthesis.speak(utter);
+  }
+}
+
+function clearSignTranslationSentence() {
+  signSentenceTokens = [];
+  const sentenceContainer = document.getElementById('bridge-live-sentence');
+  if (sentenceContainer) {
+    sentenceContainer.innerHTML = '<span class="text-xs text-[#8B87A3] font-normal italic">Patient signed words will appear here in real time...</span>';
+  }
+}
+
+function handleOfficerSendText(e) {
+  e.preventDefault();
+  const input = document.getElementById('bridge-officer-text-input');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+
+  playTextToSignSequence(text);
+  input.value = '';
+}
+
+function bridgeSendQuickText(phrase) {
+  const input = document.getElementById('bridge-officer-text-input');
+  if (input) input.value = phrase;
+  playTextToSignSequence(phrase);
+}
+
+function playTextToSignSequence(text) {
+  const displayStage = document.getElementById('bridge-sign-display-stage');
+  const progressBadge = document.getElementById('bridge-playback-progress');
+
+  if (!textToSignInstance && window.TextToSignEngine && displayStage) {
+    textToSignInstance = new window.TextToSignEngine(displayStage);
+  }
+  if (!textToSignInstance) return;
+
+  if (progressBadge) progressBadge.classList.remove('hidden');
+
+  textToSignInstance.playSequence(text,
+    ({ index, total, item }) => {
+      if (progressBadge) {
+        progressBadge.textContent = `Sign ${index + 1}/${total}: ${item.token}`;
+      }
+    },
+    () => {
+      if (progressBadge) {
+        progressBadge.textContent = 'Playback Complete';
+        setTimeout(() => progressBadge.classList.add('hidden'), 2000);
+      }
+    }
+  );
+}
+

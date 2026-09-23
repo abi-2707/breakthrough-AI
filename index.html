@@ -55,6 +55,17 @@
   <!-- Supabase Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+  <!-- MediaPipe Hands & Camera Utils for Browser Hand Tracking -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+  <!-- Sign Language Communication Bridge Modules -->
+  <script src="sign_bridge/js/hand_tracker.js"></script>
+  <script src="sign_bridge/js/sign_classifier.js"></script>
+  <script src="sign_bridge/js/text_to_sign.js"></script>
+
   <!-- Custom Glassmorphism Stylesheet -->
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -169,6 +180,11 @@
             <span class="text-[10px] text-[#8B87A3] font-mono">ID: saranraj</span>
           </div>
         </div>
+
+        <button onclick="openSignBridgeModal('coordinator')" class="btn-flame text-xs px-3.5 py-2 flex items-center gap-1.5 shadow-md">
+          <i data-lucide="hand-metal" class="w-3.5 h-3.5"></i>
+          <span>Sign Bridge</span>
+        </button>
 
         <button onclick="handleLogout()" class="btn-glass text-xs px-3.5 py-2 flex items-center gap-1.5 hover:border-[#FFB3B3] hover:text-[#9E2B2B]">
           <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
@@ -491,6 +507,11 @@
           </div>
         </div>
 
+        <button onclick="openSignBridgeModal('caregiver')" class="btn-flame text-xs px-3.5 py-2 flex items-center gap-1.5 shadow-md">
+          <i data-lucide="hand-metal" class="w-3.5 h-3.5"></i>
+          <span>Sign Bridge</span>
+        </button>
+
         <button onclick="handleLogout()" class="btn-glass text-xs px-3.5 py-2 flex items-center gap-1.5 hover:border-[#FFB3B3] hover:text-[#9E2B2B]">
           <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
           <span class="hidden sm:inline">Sign Out</span>
@@ -589,7 +610,200 @@
   </section>
 
   <!-- ========================================================================= -->
-  <!-- 4. HIGH-CONTRAST PASTEL ALARM MODAL -->
+  <!-- 4. SIGN LANGUAGE COMMUNICATION BRIDGE (LIVE DUAL-PANEL SESSION) -->
+  <!-- ========================================================================= -->
+  <div id="sign-bridge-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-[#3A3552]/80 backdrop-blur-md overflow-y-auto">
+    <div class="glass-panel w-full max-w-6xl bg-white border-2 border-[#B8A6E8] overflow-hidden shadow-2xl relative animate-rise my-auto flex flex-col max-h-[92vh]">
+      
+      <!-- Top Session Header -->
+      <div class="bg-gradient-to-r from-[#B8A6E8]/20 via-[#A8D8F0]/25 to-[#B8A6E8]/20 px-6 py-4 border-b border-[#E3DEF2] flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#B8A6E8] to-[#A8D8F0] text-[#3A3552] flex items-center justify-center font-extrabold shadow-md">
+            <i data-lucide="hand-metal" class="w-5 h-5 text-[#3A3552]"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="text-lg font-black text-[#3A3552] tracking-tight">Sign Language Communication Bridge</h3>
+              <span id="bridge-status-badge" class="badge-emerald text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-[#62B89B] animate-pulse"></span>
+                <span id="bridge-status-text">Session Ready</span>
+              </span>
+            </div>
+            <p class="text-xs text-[#8B87A3]">Bidirectional Real-Time Translation • Sign-to-Text & Text-to-Sign</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <!-- Session Toggle Button -->
+          <button id="bridge-toggle-btn" onclick="toggleSignBridgeSession()" class="btn-flame text-xs px-4 py-2 flex items-center gap-2 shadow-md">
+            <i data-lucide="play" class="w-4 h-4"></i>
+            <span id="bridge-toggle-btn-text">Start Live Session</span>
+          </button>
+          
+          <button onclick="closeSignBridgeModal()" class="text-[#8B87A3] hover:text-[#3A3552] p-1.5 rounded-xl hover:bg-[#F7F5FB] transition">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Dual Panel Body -->
+      <div class="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-y-auto flex-1">
+        
+        <!-- ========================================== -->
+        <!-- PIPELINE 1: SIGN -> TEXT (Patient Camera) -->
+        <!-- ========================================== -->
+        <div class="glass-panel p-5 border border-[#E3DEF2] bg-[#F7F5FB]/60 flex flex-col justify-between space-y-4 shadow-sm">
+          <div>
+            <div class="flex items-center justify-between pb-3 border-b border-[#E3DEF2]">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-[#B8A6E8]"></span>
+                <h4 class="text-sm font-black text-[#3A3552] uppercase tracking-wider">Patient Camera (Sign &rarr; Text)</h4>
+              </div>
+              <span class="badge-pastel text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
+                <i data-lucide="scan" class="w-3 h-3 text-[#5D43A8]"></i>
+                <span id="bridge-hands-count">0 Hands Tracked</span>
+              </span>
+            </div>
+
+            <!-- Video & MediaPipe Canvas Stage -->
+            <div class="relative w-full aspect-video bg-[#3A3552] rounded-2xl overflow-hidden mt-3 shadow-inner border border-[#E3DEF2] flex items-center justify-center">
+              <video id="bridge-webcam" class="w-full h-full object-cover transform -scale-x-100" playsinline muted autoplay></video>
+              <canvas id="bridge-canvas" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100 pointer-events-none"></canvas>
+              
+              <!-- Standby / Camera off placeholder -->
+              <div id="bridge-cam-placeholder" class="absolute inset-0 bg-[#3A3552]/90 flex flex-col items-center justify-center p-6 text-center text-white">
+                <div class="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center mb-3">
+                  <i data-lucide="video" class="w-7 h-7 text-[#B8A6E8]"></i>
+                </div>
+                <h5 class="text-sm font-bold text-white">Webcam Idle</h5>
+                <p class="text-xs text-[#AAA6C0] mt-1 max-w-xs">Click "Start Live Session" above to activate 21-point MediaPipe hand landmark tracking.</p>
+              </div>
+
+              <!-- Live Detected Sign Floating Chip -->
+              <div id="bridge-active-chip" class="hidden absolute top-3 left-3 px-3 py-1.5 rounded-xl bg-white/95 border border-[#B8A6E8] shadow-lg backdrop-blur-md flex items-center gap-2">
+                <i data-lucide="sparkles" class="w-4 h-4 text-[#B8A6E8]"></i>
+                <span id="bridge-active-sign-text" class="text-xs font-black uppercase text-[#3A3552]">DETECTING...</span>
+                <span id="bridge-active-confidence" class="text-[10px] font-mono text-[#5D43A8] font-bold">95%</span>
+              </div>
+            </div>
+
+            <!-- Real-time Live Translation Output Banner -->
+            <div class="mt-4 p-4 rounded-xl bg-white border border-[#E3DEF2] shadow-sm space-y-1.5">
+              <div class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-[#8B87A3]">
+                <span>Live Translated Sentence (for Officer)</span>
+                <button onclick="clearSignTranslationSentence()" class="text-[#E87A7A] hover:underline flex items-center gap-1 font-semibold">
+                  <i data-lucide="trash" class="w-3 h-3"></i> Clear
+                </button>
+              </div>
+              <div id="bridge-live-sentence" class="text-base sm:text-lg font-black text-[#3A3552] min-h-[3rem] p-2 bg-[#F7F5FB] rounded-lg border border-dashed border-[#E3DEF2] flex items-center flex-wrap gap-1.5">
+                <span class="text-xs text-[#8B87A3] font-normal italic">Patient signed words will appear here in real time...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Sign Guide Pill Strip -->
+          <div class="pt-2 border-t border-[#E3DEF2]">
+            <span class="text-[10px] font-bold text-[#8B87A3] uppercase tracking-wider block mb-1.5">Supported Medical Gestures & Alphabet:</span>
+            <div class="flex flex-wrap gap-1.5 text-[11px]">
+              <span class="px-2 py-0.5 rounded-md bg-white border border-[#CEEDE0] text-[#246B52] font-semibold">PAIN</span>
+              <span class="px-2 py-0.5 rounded-md bg-white border border-[#CEEDE0] text-[#246B52] font-semibold">HELP</span>
+              <span class="px-2 py-0.5 rounded-md bg-white border border-[#CEEDE0] text-[#246B52] font-semibold">WATER</span>
+              <span class="px-2 py-0.5 rounded-md bg-white border border-[#CEEDE0] text-[#246B52] font-semibold">DOCTOR</span>
+              <span class="px-2 py-0.5 rounded-md bg-white border border-[#CEEDE0] text-[#246B52] font-semibold">YES</span>
+              <span class="px-2 py-0.5 rounded-md bg-white border border-[#CEEDE0] text-[#246B52] font-semibold">NO</span>
+              <span class="px-2 py-0.5 rounded-md bg-white border border-[#E3DEF2] text-[#5D43A8] font-mono">A-Z Fingerspelling</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- PIPELINE 2: TEXT -> SIGN (Officer Input) -->
+        <!-- ========================================== -->
+        <div class="glass-panel p-5 border border-[#E3DEF2] bg-[#F7F5FB]/60 flex flex-col justify-between space-y-4 shadow-sm">
+          <div>
+            <div class="flex items-center justify-between pb-3 border-b border-[#E3DEF2]">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-[#A8D8F0]"></span>
+                <h4 class="text-sm font-black text-[#3A3552] uppercase tracking-wider">Officer Screen (Text &rarr; Sign)</h4>
+              </div>
+              <span id="bridge-playback-progress" class="badge-amber text-[10px] font-bold px-2 py-0.5 rounded-md hidden">
+                Playing Signs...
+              </span>
+            </div>
+
+            <!-- Sign Playback Stage / Theater -->
+            <div id="bridge-sign-display-stage" class="relative w-full aspect-video bg-white rounded-2xl overflow-hidden mt-3 shadow-inner border border-[#E3DEF2] flex items-center justify-center">
+              <div class="text-center p-6">
+                <div class="w-14 h-14 rounded-2xl bg-[#EAF6F0] text-[#62B89B] mx-auto flex items-center justify-center mb-3">
+                  <i data-lucide="eye" class="w-7 h-7"></i>
+                </div>
+                <h5 class="text-sm font-bold text-[#3A3552]">Sign Playback Ready</h5>
+                <p class="text-xs text-[#8B87A3] mt-1 max-w-xs">Type a message below or click a quick prompt to play back animated medical sign clips and fingerspelling.</p>
+              </div>
+            </div>
+
+            <!-- Hospital Quick Phrases Bar -->
+            <div class="mt-3">
+              <span class="text-[10px] font-bold text-[#8B87A3] uppercase tracking-wider block mb-1">Quick Staff Phrases:</span>
+              <div class="flex flex-wrap gap-1.5">
+                <button type="button" onclick="bridgeSendQuickText('Do you feel pain?')" class="btn-glass text-[11px] px-2.5 py-1 rounded-lg">
+                  Do you feel pain?
+                </button>
+                <button type="button" onclick="bridgeSendQuickText('Doctor is on the way')" class="btn-glass text-[11px] px-2.5 py-1 rounded-lg">
+                  Doctor on the way
+                </button>
+                <button type="button" onclick="bridgeSendQuickText('Drink some water')" class="btn-glass text-[11px] px-2.5 py-1 rounded-lg">
+                  Drink water
+                </button>
+                <button type="button" onclick="bridgeSendQuickText('Please take your medicine')" class="btn-glass text-[11px] px-2.5 py-1 rounded-lg">
+                  Take medicine
+                </button>
+              </div>
+            </div>
+
+            <!-- Text Input Form for Officer -->
+            <form onsubmit="handleOfficerSendText(event)" class="mt-4 space-y-2">
+              <label class="block text-xs font-bold text-[#3A3552] uppercase tracking-wider">
+                Type Message to Patient (Converts to Signs):
+              </label>
+              <div class="flex gap-2">
+                <input type="text" id="bridge-officer-text-input" placeholder="e.g. Please take your medicine and drink water..."
+                  class="flex-1 px-4 py-2.5 rounded-xl glass-input text-xs sm:text-sm text-[#3A3552] placeholder:text-[#8B87A3]">
+                <button type="submit" class="btn-flame text-xs px-4 py-2.5 flex items-center gap-1.5 shrink-0 shadow-md">
+                  <i data-lucide="send" class="w-4 h-4"></i>
+                  <span>Show Signs</span>
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div class="p-3 rounded-xl bg-white border border-[#E3DEF2] text-xs text-[#8B87A3] flex items-center justify-between">
+            <span class="flex items-center gap-1.5">
+              <i data-lucide="layers" class="w-4 h-4 text-[#B8A6E8]"></i>
+              <span>Word Clips + Letter-by-Letter Fingerspelling Fallback Active</span>
+            </span>
+            <span class="font-mono text-[10px] text-[#5D43A8] font-bold">1.0x Speed</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Bottom Session Control Footer -->
+      <div class="bg-[#F7F5FB] px-6 py-3 border-t border-[#E3DEF2] flex items-center justify-between text-xs text-[#8B87A3] shrink-0">
+        <div class="flex items-center gap-2">
+          <i data-lucide="shield-check" class="w-4 h-4 text-[#62B89B]"></i>
+          <span>HIPAA & Patient Privacy: Camera frames processed strictly in-browser memory.</span>
+        </div>
+        <button onclick="closeSignBridgeModal()" class="btn-glass text-xs px-4 py-1.5">
+          Exit Bridge Session
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 5. HIGH-CONTRAST PASTEL ALARM MODAL -->
   <!-- ========================================================================= -->
   <div id="flame-alarm-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#3A3552]/75 backdrop-blur-md">
     <div class="glass-panel w-full max-w-lg bg-white border-2 border-[#B8A6E8] overflow-hidden shadow-2xl relative animate-rise" style="box-shadow: var(--shadow-alarm);">
