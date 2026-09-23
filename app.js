@@ -597,19 +597,122 @@ function finishVoiceRecording() {
 }
 
 // -------------------------------------------------------------
-// AUTHENTICATION LOGIC (STRICT CREDENTIALS)
+// AUTHENTICATION LOGIC (STRICT CREDENTIALS + FLEXIBLE CARETAKER ONBOARDING)
 // -------------------------------------------------------------
+function switchLoginTab(tab) {
+  const signinForm = document.getElementById('form-signin');
+  const registerForm = document.getElementById('form-register');
+  const btnSignin = document.getElementById('tab-btn-signin');
+  const btnRegister = document.getElementById('tab-btn-register');
+  const errorBanner = document.getElementById('login-error-banner');
+
+  if (errorBanner) errorBanner.classList.add('hidden');
+
+  if (tab === 'register') {
+    if (signinForm) signinForm.classList.add('hidden');
+    if (registerForm) registerForm.classList.remove('hidden');
+    if (btnSignin) {
+      btnSignin.classList.remove('bg-white', 'text-[#3A3552]', 'shadow-sm');
+      btnSignin.classList.add('text-[#8B87A3]');
+    }
+    if (btnRegister) {
+      btnRegister.classList.add('bg-white', 'text-[#3A3552]', 'shadow-sm');
+      btnRegister.classList.remove('text-[#8B87A3]');
+    }
+    const enteredUser = document.getElementById('login-username')?.value.trim();
+    const regUserInput = document.getElementById('reg-caregiver-id');
+    if (enteredUser && regUserInput && !regUserInput.value) {
+      regUserInput.value = enteredUser;
+    }
+  } else {
+    if (signinForm) signinForm.classList.remove('hidden');
+    if (registerForm) registerForm.classList.add('hidden');
+    if (btnRegister) {
+      btnRegister.classList.remove('bg-white', 'text-[#3A3552]', 'shadow-sm');
+      btnRegister.classList.add('text-[#8B87A3]');
+    }
+    if (btnSignin) {
+      btnSignin.classList.add('bg-white', 'text-[#3A3552]', 'shadow-sm');
+      btnSignin.classList.remove('text-[#8B87A3]');
+    }
+  }
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function fillLoginDemo(role) {
+  switchLoginTab('signin');
+  const userEl = document.getElementById('login-username');
+  const passEl = document.getElementById('login-password');
+  if (role === 'coordinator') {
+    if (userEl) userEl.value = 'saranraj';
+    if (passEl) passEl.value = 'saran5721';
+    showGlassToast('Filled Doctor Saranraj credentials.', 'info');
+  } else if (role === 'caregiver') {
+    if (userEl) userEl.value = 'nandhini2007';
+    if (passEl) passEl.value = 'nandi2007';
+    showGlassToast('Filled Caretaker Nandhini credentials.', 'info');
+  }
+}
+
+function handleRegisterCaregiver(e) {
+  e.preventDefault();
+  const name = document.getElementById('reg-caregiver-name').value.trim();
+  const rawId = document.getElementById('reg-caregiver-id').value.trim();
+  const id = rawId.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  const password = document.getElementById('reg-caregiver-password').value.trim();
+
+  if (!id || !password) {
+    showGlassToast('Please enter both username and password.', 'error');
+    return;
+  }
+
+  if (id === 'saranraj') {
+    showGlassToast('That username is reserved for Coordinator.', 'error');
+    return;
+  }
+
+  const caregivers = getCaregivers();
+  if (caregivers.some(c => c.id.toLowerCase() === id)) {
+    showGlassToast(`Username "${id}" is already registered. Please sign in or pick another username.`, 'error');
+    return;
+  }
+
+  const newCaregiver = {
+    id: id,
+    name: name || rawId,
+    password: password
+  };
+
+  caregivers.push(newCaregiver);
+  saveCaregivers(caregivers);
+
+  showGlassToast(`Welcome, ${newCaregiver.name}! Caretaker account created successfully.`, 'success', 'Account Registered');
+
+  // Automatically sign in
+  loginSuccess({
+    role: 'caregiver',
+    id: newCaregiver.id,
+    name: newCaregiver.name
+  });
+}
+
 function handleLogin(e) {
   e.preventDefault();
   const usernameInput = document.getElementById('login-username').value.trim().toLowerCase();
   const passwordInput = document.getElementById('login-password').value.trim();
   const loginCard = document.getElementById('login-card');
   const errorBanner = document.getElementById('login-error-banner');
+  const registerHintBtn = document.getElementById('login-register-hint-btn');
 
-  errorBanner.classList.add('hidden');
-  loginCard.classList.remove('shake-animation');
+  if (errorBanner) errorBanner.classList.add('hidden');
+  if (loginCard) loginCard.classList.remove('shake-animation');
 
-  const caregiver = getCaregivers().find(item => item.id.toLowerCase() === usernameInput && item.password === passwordInput);
+  const caregivers = getCaregivers();
+  const caregiver = caregivers.find(item => 
+    (item.id.toLowerCase() === usernameInput || (item.name && item.name.toLowerCase() === usernameInput)) && 
+    item.password.trim() === passwordInput
+  );
+
   if (caregiver) {
     loginSuccess({
       role: 'caregiver',
@@ -629,24 +732,44 @@ function handleLogin(e) {
     return;
   }
 
-  // Invalid Credentials -> Shake & Error
-  void loginCard.offsetWidth; // trigger reflow
-  loginCard.classList.add('shake-animation');
-  errorBanner.classList.remove('hidden');
-  document.getElementById('login-error-text').textContent = 'Invalid User ID or Password. Please verify your credentials.';
-  showGlassToast('Access denied: Invalid credentials entered.', 'error', 'Authentication Failed');
+  // Invalid Credentials -> Shake & Detailed Hint
+  if (loginCard) {
+    void loginCard.offsetWidth; // trigger reflow
+    loginCard.classList.add('shake-animation');
+  }
+  if (errorBanner) errorBanner.classList.remove('hidden');
+
+  const accountExists = usernameInput === 'saranraj' || caregivers.some(c => c.id.toLowerCase() === usernameInput || (c.name && c.name.toLowerCase() === usernameInput));
+  const errorText = document.getElementById('login-error-text');
+  if (!accountExists) {
+    if (errorText) errorText.textContent = `No account found for "${usernameInput}". Please verify or register as a new caretaker.`;
+    if (registerHintBtn) registerHintBtn.classList.remove('hidden');
+  } else {
+    if (errorText) errorText.textContent = 'Incorrect password entered. Please try again.';
+    if (registerHintBtn) registerHintBtn.classList.add('hidden');
+  }
+  showGlassToast('Authentication failed: Invalid credentials.', 'error', 'Login Failed');
 }
 
 function loginSuccess(user) {
   appState.currentUser = user;
   sessionStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(user));
 
-  // Reset form
-  document.getElementById('login-username').value = '';
-  document.getElementById('login-password').value = '';
+  // Reset inputs
+  const uEl = document.getElementById('login-username');
+  const pEl = document.getElementById('login-password');
+  if (uEl) uEl.value = '';
+  if (pEl) pEl.value = '';
 
   showGlassToast(`Welcome back, ${user.name}! Accessing ${user.role.toUpperCase()} portal...`, 'success', 'Login Authorized');
   renderCurrentView();
+
+  // Prompt for notifications on login
+  if ('Notification' in window && Notification.permission === 'default') {
+    setTimeout(() => {
+      enableBrowserNotifications();
+    }, 1500);
+  }
 }
 
 function handleLogout() {
@@ -661,8 +784,13 @@ function openAddCaregiverModal() {
   if (!modal) return;
   modal.classList.remove('hidden');
   modal.classList.add('flex');
-  document.getElementById('new-caregiver-id').value = '';
-  document.getElementById('new-caregiver-password').value = '';
+  const nameEl = document.getElementById('new-caregiver-name');
+  if (nameEl) nameEl.value = '';
+  const idEl = document.getElementById('new-caregiver-id');
+  if (idEl) idEl.value = '';
+  const passEl = document.getElementById('new-caregiver-password');
+  if (passEl) passEl.value = '';
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function closeAddCaregiverModal() {
@@ -678,19 +806,97 @@ function submitAddCaregiver(e) {
     showGlassToast('Only the coordinator can add a caretaker.', 'error');
     return;
   }
-  const id = document.getElementById('new-caregiver-id').value.trim().toLowerCase();
-  const password = document.getElementById('new-caregiver-password').value;
-  if (!id || !password) return;
+  const nameInput = document.getElementById('new-caregiver-name');
+  const name = nameInput ? nameInput.value.trim() : '';
+  const rawId = document.getElementById('new-caregiver-id').value.trim();
+  const id = rawId.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  const password = document.getElementById('new-caregiver-password').value.trim();
+
+  if (!id || !password) {
+    showGlassToast('Caregiver username and password are required.', 'error');
+    return;
+  }
   const caregivers = getCaregivers();
-  if (id === 'saranraj' || caregivers.some(item => item.id === id)) {
+  if (id === 'saranraj' || caregivers.some(item => item.id.toLowerCase() === id)) {
     showGlassToast('That caregiver username is already in use.', 'error');
     return;
   }
-  caregivers.push({ id, name: id, password });
+  caregivers.push({ id, name: name || rawId, password });
   saveCaregivers(caregivers);
   closeAddCaregiverModal();
   renderCoordinatorDashboard();
-  showGlassToast(`Caregiver account ${id} created.`, 'success');
+  showGlassToast(`Caregiver account "${name || id}" (${id}) created successfully.`, 'success');
+}
+
+// BROWSER & PHONE NOTIFICATION SERVICES
+// -------------------------------------------------------------
+function enableBrowserNotifications() {
+  if (!('Notification' in window)) {
+    showGlassToast('Browser notifications are not supported on this browser/device.', 'error');
+    return;
+  }
+  if (Notification.permission === 'granted') {
+    showGlassToast('Browser notifications are active and ready.', 'success', 'Notifications Enabled');
+    sendBrowserNotification('BREAK THROUGH AI Alerts Active', 'You will receive real-time alerts for all medication alarms.');
+    return;
+  }
+  Notification.requestPermission().then(perm => {
+    if (perm === 'granted') {
+      showGlassToast('Browser notifications successfully enabled!', 'success', 'Notifications Active');
+      sendBrowserNotification('BREAK THROUGH AI Alerts Enabled', 'System alerts and medication reminders are now active.');
+    } else {
+      showGlassToast('Notification permission was denied. Check browser site settings.', 'info');
+    }
+  });
+}
+
+function sendBrowserNotification(title, body, tag = 'carehub-alert') {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification(title, {
+        body: body,
+        icon: 'https://cdn-icons-png.flaticon.com/512/3004/3004458.png',
+        tag: tag,
+        requireInteraction: true
+      });
+    } catch (err) {
+      console.warn('Browser notification error:', err);
+    }
+  }
+}
+
+function openCaregiverNtfyFeed() {
+  const caregiverId = appState.currentUser ? appState.currentUser.id : 'nandhini2007';
+  const topic = caregiverTopic(caregiverId);
+  window.open(`https://ntfy.sh/${topic}`, '_blank');
+}
+
+function testCaregiverNotification() {
+  if (!appState.currentUser) return;
+  const caregiverId = appState.currentUser.id;
+  const caregiverName = appState.currentUser.name;
+  const topic = caregiverTopic(caregiverId);
+
+  enableBrowserNotifications();
+  sendBrowserNotification('🔔 Test Notification', `Caregiver ${caregiverName} alert test successful!`);
+
+  fetch(`https://ntfy.sh/${topic}`, {
+    method: 'POST',
+    headers: {
+      'Title': '🔔 Test Caregiver Alert',
+      'Priority': 'urgent',
+      'Tags': 'bell,stethoscope'
+    },
+    body: `Test notification for ${caregiverName} (${caregiverId})\nAll real-time notification pathways are active at ${new Date().toLocaleTimeString()}!`
+  }).then(res => {
+    if (res.ok) {
+      showGlassToast(`✓ Sent test alert to ntfy topic: ${topic}`, 'success', 'Alert Delivered');
+    } else {
+      showGlassToast('Ntfy delivery failed.', 'error');
+    }
+  }).catch(() => {
+    showGlassToast('Alert sent locally. Check ntfy app if network is limited.', 'info');
+  });
 }
 
 // -------------------------------------------------------------
@@ -813,6 +1019,16 @@ function submitAddPatient(e) {
   savePatients(patients);
   appState.selectedPatientId = id;
 
+  if (caregiverObj && caregiverObj.id) {
+    sendCaregiverNtfy(
+      caregiverObj,
+      newPatient,
+      `New Patient Assigned: ${name} (${condition}).`,
+      'default',
+      'hospital,user_plus'
+    );
+  }
+
   closeAddPatientModal();
   if (appState.currentUser && appState.currentUser.role === 'caregiver') {
     renderPatientDashboard();
@@ -824,7 +1040,11 @@ function submitAddPatient(e) {
 
 function getVisibleCaregiverPatients() {
   if (!appState.currentUser || appState.currentUser.role !== 'caregiver') return [];
-  return getPatients().filter(patient => patient.caregiverId === appState.currentUser.id);
+  const currentId = appState.currentUser.id.toLowerCase();
+  return getPatients().filter(patient => 
+    (patient.caregiverId && patient.caregiverId.toLowerCase() === currentId) ||
+    (patient.caregiver && patient.caregiver.id && patient.caregiver.id.toLowerCase() === currentId)
+  );
 }
 
 function editCaregiverPatient(patientId) {
@@ -923,24 +1143,26 @@ function caregiverTopic(caregiverId) {
   return `${NTFY_TOPIC_PREFIX}${String(caregiverId).trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-')}`;
 }
 
-async function sendCaregiverNtfy(caregiver, patient, eventText) {
+async function sendCaregiverNtfy(caregiver, patient, eventText, priority = 'high', tags = 'hospital,caregiver,pill') {
   if (!caregiver || !caregiver.id || typeof fetch !== 'function') return false;
 
+  const topic = caregiverTopic(caregiver.id);
   const message = [
     eventText,
     `Patient: ${patient.name} (${patient.id})`,
     `Age: ${patient.age || 'Not provided'}`,
     `Condition: ${patient.condition || 'Not provided'}`,
-    `Caregiver: ${caregiver.name} (${caregiver.id})`
+    `Caregiver: ${caregiver.name} (${caregiver.id})`,
+    `Time: ${new Date().toLocaleTimeString()}`
   ].join('\n');
 
   try {
-    const response = await fetch(`https://ntfy.sh/${caregiverTopic(caregiver.id)}`, {
+    const response = await fetch(`https://ntfy.sh/${topic}`, {
       method: 'POST',
       headers: {
-        'Title': 'BREAK THROUGH AI Caregiver Update',
-        'Priority': 'high',
-        'Tags': 'hospital,caregiver'
+        'Title': 'BREAK THROUGH AI Caregiver Alert',
+        'Priority': priority,
+        'Tags': tags
       },
       body: message
     });
@@ -977,11 +1199,13 @@ function assignCaregiver(event) {
   appState.pendingCaregiverId = '';
 
   if (previousCaregiver && previousCaregiver.id !== nextCaregiver.id) {
-    sendCaregiverNtfy(previousCaregiver, patient, `Caregiver reassignment notice: ${nextCaregiver.name} (${nextCaregiver.id}) is now assigned.`);
+    sendCaregiverNtfy(previousCaregiver, patient, `Caregiver reassignment notice: ${nextCaregiver.name} (${nextCaregiver.id}) is now assigned.`, 'default', 'hospital,user_x');
   }
   sendCaregiverNtfy(nextCaregiver, patient, previousCaregiver
     ? `Caregiver assignment notice: you replaced ${previousCaregiver.name} (${previousCaregiver.id}).`
-    : 'Caregiver assignment notice: you are now assigned to this patient.');
+    : 'Caregiver assignment notice: you are now assigned to this patient.', 'high', 'hospital,user_check');
+
+  sendBrowserNotification('Caregiver Assigned', `${caregiverAccount.name} (${id}) assigned to ${patient.name}.`);
 
   renderCoordinatorDashboard();
   showGlassToast(`Assigned ${caregiverAccount.name} (${id}) to ${patient.name}. Previous and new caregiver notifications sent.`, 'success', 'Caretaker Assigned');
@@ -1064,6 +1288,19 @@ function submitPrescription(e) {
   if (placeholder) placeholder.classList.remove('hidden');
 
   appState.selectedPatientId = patient.id;
+
+  // Notify Caregiver immediately
+  if (patient.caregiver && patient.caregiver.id) {
+    sendCaregiverNtfy(
+      patient.caregiver,
+      patient,
+      `New Medication Prescribed: ${medName} (${medDosage || '1 Dose'}). Alarm set for ${alarmTime}. Instructions: ${medInstructions || 'Take as prescribed.'}`,
+      'high',
+      'pill,prescription'
+    );
+  }
+  sendBrowserNotification(`New Prescription: ${medName}`, `Scheduled for ${patient.name} at ${alarmTime}.`);
+
   renderCoordinatorDashboard();
   showGlassToast(`✓ Deployed ${medName} to ${patient.name}'s dashboard! Alarm active for ${alarmTime}.`, 'success', 'Prescription Deployed');
 }
@@ -1118,6 +1355,21 @@ function triggerAlarmForPrescription(rx, patientName, patientId) {
   startContinuousAlarmSound();
   announceMedication(rx);
   appState.alarmSpeechInterval = setInterval(() => announceMedication(rx), 6500);
+
+  // Send Immediate Push & ntfy notifications
+  sendBrowserNotification(`🚨 MEDICATION ALARM: ${rx.name}`, `Patient: ${patientName} | Dosage: ${rx.dosage} | Scheduled Time: ${rx.alarmTime}`);
+  
+  const allPatients = getPatients();
+  const currentP = allPatients.find(p => p.id.toLowerCase() === (patientId || '').toLowerCase());
+  if (currentP && currentP.caregiver) {
+    sendCaregiverNtfy(
+      currentP.caregiver,
+      currentP,
+      `🚨 URGENT MEDICATION ALARM: Time for ${patientName} to take ${rx.name} (${rx.dosage})! Instructions: ${rx.instructions}`,
+      'urgent',
+      'rotating_light,alarm_clock,pill'
+    );
+  }
 
   showGlassToast(`🔔 TIME FOR YOUR MEDICATION: ${rx.name}`, 'alarm', 'Active Alarm');
 }
@@ -1455,6 +1707,11 @@ function renderPatientDashboard() {
   const idEl = document.getElementById('patient-display-id');
   if (idEl) idEl.textContent = appState.currentUser.id;
 
+  const topicCodeEl = document.getElementById('cg-ntfy-topic-name');
+  if (topicCodeEl && appState.currentUser) {
+    topicCodeEl.textContent = caregiverTopic(appState.currentUser.id);
+  }
+
   // Render Patient's Prescriptions Cards
   const container = document.getElementById('patient-prescriptions-grid');
   if (container) {
@@ -1560,12 +1817,27 @@ async function refreshPatientsFromServer() {
     const response = await fetch(SYNC_API_URL, { cache: 'no-store' });
     if (!response.ok) return;
     const remote = await response.json();
-    const hasRemoteData = remote.patients.length || remote.caregivers.length || remote.voiceNotes.length;
+    const hasRemoteData = (remote.patients && remote.patients.length) || (remote.caregivers && remote.caregivers.length) || (remote.voiceNotes && remote.voiceNotes.length);
     const hasLocalData = getPatients().length || getCaregivers().length > 1 || getVoiceNotes().length;
+
     if (hasRemoteData) {
-      localStorage.setItem(STORAGE_PATIENTS_KEY, JSON.stringify(remote.patients));
-      localStorage.setItem(STORAGE_CAREGIVERS_KEY, JSON.stringify(remote.caregivers));
-      localStorage.setItem(STORAGE_VOICE_NOTES_KEY, JSON.stringify(remote.voiceNotes));
+      if (Array.isArray(remote.patients) && remote.patients.length > 0) {
+        localStorage.setItem(STORAGE_PATIENTS_KEY, JSON.stringify(remote.patients));
+      }
+      if (Array.isArray(remote.caregivers) && remote.caregivers.length > 0) {
+        const localCg = getCaregivers();
+        const mergedMap = new Map();
+        localCg.forEach(cg => mergedMap.set(cg.id.toLowerCase(), cg));
+        remote.caregivers.forEach(cg => {
+          if (!mergedMap.has(cg.id.toLowerCase())) {
+            mergedMap.set(cg.id.toLowerCase(), cg);
+          }
+        });
+        localStorage.setItem(STORAGE_CAREGIVERS_KEY, JSON.stringify(Array.from(mergedMap.values())));
+      }
+      if (Array.isArray(remote.voiceNotes) && remote.voiceNotes.length > 0) {
+        localStorage.setItem(STORAGE_VOICE_NOTES_KEY, JSON.stringify(remote.voiceNotes));
+      }
       window.dispatchEvent(new CustomEvent('carehub-data-updated'));
       return;
     }

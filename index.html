@@ -96,14 +96,44 @@
         <p class="text-xs text-[#8B87A3] uppercase tracking-widest font-bold mt-1">BREAK THROUGH AI Healthcare Network</p>
       </div>
 
-      <!-- Error Alert Banner -->
-      <div id="login-error-banner" class="hidden mb-6 p-3.5 rounded-xl bg-[#FFB3B3]/25 border border-[#FFB3B3] text-[#9E2B2B] text-xs flex items-center gap-2.5">
-        <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 text-[#E87A7A]"></i>
-        <span id="login-error-text">Invalid User ID or Password.</span>
+      <!-- Tabs: Sign In / Register Caretaker -->
+      <div class="flex rounded-xl bg-[#F7F5FB] p-1 border border-[#E3DEF2] mb-6">
+        <button id="tab-btn-signin" type="button" onclick="switchLoginTab('signin')"
+          class="flex-1 py-2 text-xs font-bold rounded-lg transition-all bg-white text-[#3A3552] shadow-sm">
+          Sign In
+        </button>
+        <button id="tab-btn-register" type="button" onclick="switchLoginTab('register')"
+          class="flex-1 py-2 text-xs font-bold rounded-lg transition-all text-[#8B87A3] hover:text-[#3A3552]">
+          Register Caretaker
+        </button>
       </div>
 
-      <!-- Login Form -->
-      <form onsubmit="handleLogin(event)" class="space-y-4">
+      <!-- Quick Demo Login Bar -->
+      <div class="mb-5 p-3 rounded-xl bg-[#B8A6E8]/10 border border-[#B8A6E8]/30 space-y-1.5 text-xs">
+        <span class="block font-bold text-[#5D43A8] text-[11px] uppercase tracking-wider">Quick Fill Demo Access</span>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" onclick="fillLoginDemo('coordinator')" class="px-2.5 py-1 rounded-lg bg-white border border-[#B8A6E8]/40 hover:bg-[#F7F5FB] text-[#3A3552] font-semibold text-[11px] flex items-center gap-1 shadow-xs">
+            <i data-lucide="shield" class="w-3 h-3 text-[#B8A6E8]"></i> Doctor (saranraj)
+          </button>
+          <button type="button" onclick="fillLoginDemo('caregiver')" class="px-2.5 py-1 rounded-lg bg-white border border-[#62B89B]/40 hover:bg-[#F7F5FB] text-[#3A3552] font-semibold text-[11px] flex items-center gap-1 shadow-xs">
+            <i data-lucide="heart" class="w-3 h-3 text-[#62B89B]"></i> Caretaker (nandhini2007)
+          </button>
+        </div>
+      </div>
+
+      <!-- Error Alert Banner -->
+      <div id="login-error-banner" class="hidden mb-6 p-3.5 rounded-xl bg-[#FFB3B3]/25 border border-[#FFB3B3] text-[#9E2B2B] text-xs flex items-start gap-2.5">
+        <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 text-[#E87A7A] mt-0.5"></i>
+        <div class="flex-1">
+          <span id="login-error-text">Invalid User ID or Password.</span>
+          <button id="login-register-hint-btn" type="button" onclick="switchLoginTab('register')" class="hidden block mt-1 text-[#5D43A8] font-bold underline hover:text-[#3A3552]">
+            New Caretaker? Click here to register &rarr;
+          </button>
+        </div>
+      </div>
+
+      <!-- Form 1: Sign In -->
+      <form id="form-signin" onsubmit="handleLogin(event)" class="space-y-4">
         <div>
           <label class="block text-xs font-bold text-[#3A3552] uppercase tracking-wider mb-1.5">User ID / Username</label>
           <div class="relative">
@@ -129,6 +159,46 @@
           <button type="submit" class="w-full btn-flame py-3.5 text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl">
             <span>Authenticate & Access</span>
             <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </form>
+
+      <!-- Form 2: Register New Caretaker -->
+      <form id="form-register" onsubmit="handleRegisterCaregiver(event)" class="hidden space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-[#3A3552] uppercase tracking-wider mb-1.5">Full Name</label>
+          <div class="relative">
+            <input type="text" id="reg-caregiver-name" placeholder="e.g. Kavipriya R" required
+              class="w-full px-4 py-3 rounded-xl glass-input text-sm text-[#3A3552] pl-11 placeholder:text-[#8B87A3]">
+            <i data-lucide="user-check" class="w-4 h-4 text-[#62B89B] absolute left-4 top-3.5"></i>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-[#3A3552] uppercase tracking-wider mb-1.5">Caretaker Username</label>
+          <div class="relative">
+            <input type="text" id="reg-caregiver-id" placeholder="e.g. kavipriya2008" required autocomplete="username"
+              class="w-full px-4 py-3 rounded-xl glass-input text-sm text-[#3A3552] pl-11 placeholder:text-[#8B87A3] font-mono">
+            <i data-lucide="at-sign" class="w-4 h-4 text-[#62B89B] absolute left-4 top-3.5"></i>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-[#3A3552] uppercase tracking-wider mb-1.5">Password</label>
+          <div class="relative">
+            <input type="password" id="reg-caregiver-password" placeholder="Create your password" required autocomplete="new-password"
+              class="w-full px-4 py-3 rounded-xl glass-input text-sm text-[#3A3552] pl-11 pr-11 placeholder:text-[#8B87A3]">
+            <i data-lucide="lock" class="w-4 h-4 text-[#62B89B] absolute left-4 top-3.5"></i>
+            <button type="button" onclick="const p=document.getElementById('reg-caregiver-password'); p.type = p.type==='password'?'text':'password';" class="absolute right-4 top-3.5 text-[#8B87A3] hover:text-[#62B89B]">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-2">
+          <button type="submit" class="w-full btn-flame py-3.5 text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl bg-gradient-to-r from-[#62B89B] to-[#5D43A8]">
+            <i data-lucide="user-plus" class="w-4 h-4"></i>
+            <span>Create Account & Sign In</span>
           </button>
         </div>
       </form>
@@ -180,6 +250,11 @@
             <span class="text-[10px] text-[#8B87A3] font-mono">ID: saranraj</span>
           </div>
         </div>
+
+        <button onclick="enableBrowserNotifications()" title="Enable Real-Time Notifications" class="btn-glass text-xs px-3 py-2 flex items-center gap-1.5 text-[#5D43A8] hover:border-[#B8A6E8]">
+          <i data-lucide="bell" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Alerts</span>
+        </button>
 
         <button onclick="openSignBridgeModal('coordinator')" class="btn-flame text-xs px-3.5 py-2 flex items-center gap-1.5 shadow-md">
           <i data-lucide="hand-metal" class="w-3.5 h-3.5"></i>
@@ -510,6 +585,11 @@
           </div>
         </div>
 
+        <button onclick="enableBrowserNotifications()" title="Enable Real-Time Notifications" class="btn-glass text-xs px-3 py-2 flex items-center gap-1.5 text-[#5D43A8] hover:border-[#B8A6E8]">
+          <i data-lucide="bell" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Alerts</span>
+        </button>
+
         <button onclick="openSignBridgeModal('caregiver')" class="btn-flame text-xs px-3.5 py-2 flex items-center gap-1.5 shadow-md">
           <i data-lucide="hand-metal" class="w-3.5 h-3.5"></i>
           <span>Sign Bridge</span>
@@ -524,6 +604,35 @@
 
     <!-- Main Patient Content Body -->
     <main class="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-6">
+
+      <!-- Live Notification & Phone Alerts Card -->
+      <div class="glass-panel p-4 sm:p-5 border border-[#B8A6E8]/40 bg-gradient-to-r from-white via-[#F7F5FB] to-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="flex items-center gap-3.5">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#B8A6E8] to-[#A8D8F0] flex items-center justify-center text-[#3A3552] font-black shrink-0 shadow-sm">
+            <i data-lucide="bell-ring" class="w-5 h-5 text-[#5D43A8]"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h4 class="text-sm font-extrabold text-[#3A3552]">Live Phone & Browser Alerts Active</h4>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#A8E6CF]/30 text-[#246B52] border border-[#62B89B]/40">Connected</span>
+            </div>
+            <p class="text-xs text-[#8B87A3] mt-0.5">
+              Receive sound, push & ntfy notifications for medication alarms and updates.
+              Topic: <code id="cg-ntfy-topic-name" class="font-mono text-[#5D43A8] font-bold bg-[#B8A6E8]/15 px-1.5 py-0.5 rounded">carehub-caregiver</code>
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 self-stretch sm:self-auto">
+          <button onclick="openCaregiverNtfyFeed()" class="flex-1 sm:flex-initial btn-glass text-xs px-3.5 py-2 flex items-center justify-center gap-1.5 shadow-xs" title="Open live ntfy alert feed in browser or phone">
+            <i data-lucide="smartphone" class="w-3.5 h-3.5 text-[#5D43A8]"></i>
+            <span>Open Phone Feed</span>
+          </button>
+          <button onclick="testCaregiverNotification()" class="flex-1 sm:flex-initial btn-flame text-xs px-3.5 py-2 flex items-center justify-center gap-1.5 shadow-md">
+            <i data-lucide="bell" class="w-3.5 h-3.5"></i>
+            <span>Test Alert Now</span>
+          </button>
+        </div>
+      </div>
 
       <div class="flex items-center justify-between gap-4">
         <div>
@@ -931,6 +1040,10 @@
         <button onclick="closeAddCaregiverModal()" class="text-[#8B87A3] hover:text-[#3A3552] p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
       <form onsubmit="submitAddCaregiver(event)" class="space-y-4 text-xs sm:text-sm">
+        <div>
+          <label class="block font-bold text-[#3A3552] uppercase tracking-wider mb-1.5">Caregiver Full Name</label>
+          <input type="text" id="new-caregiver-name" placeholder="e.g. Kavipriya R" class="w-full px-4 py-2.5 rounded-xl glass-input text-[#3A3552]">
+        </div>
         <div>
           <label class="block font-bold text-[#3A3552] uppercase tracking-wider mb-1.5">Caregiver Username</label>
           <input type="text" id="new-caregiver-id" required class="w-full px-4 py-2.5 rounded-xl glass-input text-[#3A3552] font-mono" placeholder="e.g. kavipriya2008">
