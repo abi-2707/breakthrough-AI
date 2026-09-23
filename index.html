@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — BREAK THROUGH AI</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            pastel: {
+              lavender: '#F7F5FB',
+              mint: '#EAF6F0',
+              violet: '#B8A6E8',
+              sky: '#A8D8F0',
+              periwinkle: '#C9BFF0',
+              peach: '#FFD3B0',
+              coral: '#FFB3B3',
+              lilac: '#E3DEF2',
+              indigo: '#3A3552',
+              gray: '#8B87A3'
+            },
+            flame: {
+              cyan: '#B8A6E8',
+              azure: '#A8D8F0',
+              neon: '#C9BFF0',
+              deep: '#9E88DE',
+            },
+            obsidian: {
+              void: '#F7F5FB',
+              dark: '#EAF6F0',
+              card: '#FFFFFF',
+            }
+          },
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Supabase Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Custom Glassmorphism Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-[#F7F5FB] text-[#3A3552] min-h-screen relative flex flex-col justify-between selection:bg-[#B8A6E8] selection:text-[#3A3552]">
+
+  <!-- Ambient Animated Glowing Pastel Blobs -->
+  <div class="orb-container">
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+    <div class="glow-orb orb-3"></div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 1. LOGIN VIEW (DEFAULT ENTRY POINT) -->
+  <!-- ========================================================================= -->
+  <section id="view-login" class="relative z-10 flex-1 flex items-center justify-center p-4 sm:p-8 min-h-screen">
+    <div id="login-card" class="w-full max-w-md glass-panel p-8 sm:p-10 border border-[#E3DEF2] shadow-2xl relative overflow-hidden animate-rise">
+      
+      <!-- Top Glowing Border Shimmer -->
+      <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-transparent via-[#B8A6E8] to-transparent"></div>
+
+      <!-- Brand Header -->
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[#B8A6E8] to-[#A8D8F0] text-[#3A3552] font-extrabold shadow-lg shadow-[#C9BFF0]/40 mb-3 alarm-flame-pulse">
+          <i data-lucide="heart-pulse" class="w-8 h-8 text-[#3A3552]"></i>
+        </div>
+        <h1 class="text-3xl font-extrabold tracking-tight text-[#3A3552] mt-1">Login</h1>
+        <p class="text-xs text-[#8B87A3] uppercase tracking-widest font-bold mt-1">BREAK THROUGH AI Healthcare Network</p>
+      </div>
+
+      <!-- Error Alert Banner -->
+      <div id="login-error-banner" class="hidden mb-6 p-3.5 rounded-xl bg-[#FFB3B3]/25 border border-[#FFB3B3] text-[#9E2B2B] text-xs flex items-center gap-2.5">
+        <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 text-[#E87A7A]"></i>
+        <span id="login-error-text">Invalid User ID or Password.</span>
+      </div>
+
+      <!-- Login Form -->
+      <form onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-[#3A3552] uppercase tracking-wider mb-1.5">User ID / Username</label>
+          <div class="relative">
+            <input type="text" id="login-username" placeholder="e.g. nandhini2007 or saranraj" required autocomplete="username"
+              class="w-full px-4 py-3 rounded-xl glass-input text-sm text-[#3A3552] pl-11 placeholder:text-[#8B87A3]">
+            <i data-lucide="user" class="w-4 h-4 text-[#B8A6E8] absolute left-4 top-3.5"></i>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-[#3A3552] uppercase tracking-wider mb-1.5">Password</label>
+          <div class="relative">
+            <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password"
+              class="w-full px-4 py-3 rounded-xl glass-input text-sm text-[#3A3552] pl-11 pr-11 placeholder:text-[#8B87A3]">
+            <i data-lucide="lock" class="w-4 h-4 text-[#B8A6E8] absolute left-4 top-3.5"></i>
+            <button type="button" onclick="const p=document.getElementById('login-password'); p.type = p.type==='password'?'text':'password';" class="absolute right-4 top-3.5 text-[#8B87A3] hover:text-[#B8A6E8]">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-2">
+          <button type="submit" class="w-full btn-flame py-3.5 text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl">
+            <span>Authenticate & Access</span>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </form>
+
+      <!-- Security / Footer Notes -->
+      <div class="mt-8 pt-4 border-t border-[#E3DEF2] text-center">
+        <p class="text-[11px] text-[#8B87A3] flex items-center justify-center gap-1.5">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5 text-[#B8A6E8]"></i>
+          Encrypted Healthcare Channel • Portal Access Only
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- 2. COORDINATOR PORTAL (DR. SARANRAJ) -->
+  <!-- ========================================================================= -->
+  <section id="view-coordinator" class="hidden relative z-10 flex-1 flex flex-col min-h-screen">
+    
+    <!-- Top Glass Navigation Bar -->
+    <header class="glass-panel rounded-none border-x-0 border-t-0 px-6 py-4 sticky top-0 z-30 flex items-center justify-between shadow-sm bg-white/90 border-b border-[#E3DEF2]">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#B8A6E8] to-[#A8D8F0] flex items-center justify-center text-[#3A3552] font-extrabold shadow-md shadow-[#C9BFF0]/30">
+          <i data-lucide="activity" class="w-6 h-6 text-[#3A3552]"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-lg tracking-tight text-[#3A3552]">BREAK THROUGH AI</span>
+            <span class="badge-flame text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md">Coordinator</span>
+          </div>
+          <span class="text-xs text-[#8B87A3]">Clinical Coordination Portal</span>
+        </div>
+      </div>
+
+      <!-- Right Controls: System Clock, Profile, Logout -->
+      <div class="flex items-center gap-4">
+        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#EAF6F0] border border-[#CEEDE0] text-xs font-mono text-[#3A3552]">
+          <i data-lucide="clock" class="w-3.5 h-3.5 text-[#5D43A8]"></i>
+          <span class="live-clock-display font-bold">00:00:00</span>
+        </div>
+
+        <div class="flex items-center gap-3 pl-3 border-l border-[#E3DEF2]">
+          <div class="w-9 h-9 rounded-xl bg-[#B8A6E8]/20 border border-[#B8A6E8]/40 flex items-center justify-center text-[#5D43A8] font-bold text-xs">
+            SR
+          </div>
+          <div class="hidden md:block text-left">
+            <span class="text-xs font-bold text-[#3A3552] block">Dr. Saranraj</span>
+            <span class="text-[10px] text-[#8B87A3] font-mono">ID: saranraj</span>
+          </div>
+        </div>
+
+        <button onclick="handleLogout()" class="btn-glass text-xs px-3.5 py-2 flex items-center gap-1.5 hover:border-[#FFB3B3] hover:text-[#9E2B2B]">
+          <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Sign Out</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Coordinator Content Body -->
+    <main class="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-6">
+
+      <!-- Metrics Row -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="glass-panel p-5 border border-[#E3DEF2] bg-white">
+          <div class="flex items-center justify-between text-[#8B87A3] text-xs font-bold uppercase">
+            <span>Registered Patients</span>
+            <i data-lucide="users" class="w-4 h-4 text-[#B8A6E8]"></i>
+          </div>
+          <div id="metric-total-patients" class="text-3xl font-black text-[#3A3552] mt-2">2</div>
+          <div class="text-[11px] text-[#5D43A8] mt-1 font-semibold">Active Profiles</div>
+        </div>
+
+        <div class="glass-panel p-5 border border-[#E3DEF2] bg-white">
+          <div class="flex items-center justify-between text-[#8B87A3] text-xs font-bold uppercase">
+            <span>Active Prescriptions</span>
+            <i data-lucide="pill" class="w-4 h-4 text-[#82C5E8]"></i>
+          </div>
+          <div id="metric-total-prescriptions" class="text-3xl font-black text-[#3A3552] mt-2">3</div>
+          <div class="text-[11px] text-[#82C5E8] mt-1 font-semibold">Scheduled Medications</div>
+        </div>
+
+        <div class="glass-panel p-5 border border-[#FFD3B0] bg-white">
+          <div class="flex items-center justify-between text-[#8B87A3] text-xs font-bold uppercase">
+            <span>Pending Alarms</span>
+            <i data-lucide="alarm-clock" class="w-4 h-4 text-[#EFA66E]"></i>
+          </div>
+          <div id="metric-pending-alarms" class="text-3xl font-black text-[#EFA66E] mt-2">2</div>
+          <div class="text-[11px] text-[#96531C] mt-1 font-semibold">Awaiting Acknowledgment</div>
+        </div>
+
+        <div class="glass-panel p-5 border border-[#CEEDE0] bg-white">
+          <div class="flex items-center justify-between text-[#8B87A3] text-xs font-bold uppercase">
+            <span>Doses Confirmed</span>
+            <i data-lucide="check-circle" class="w-4 h-4 text-[#62B89B]"></i>
+          </div>
+          <div id="metric-taken-confirmed" class="text-3xl font-black text-[#246B52] mt-2">1</div>
+          <div class="text-[11px] text-[#246B52] mt-1 font-semibold">Verified Adherence</div>
+        </div>
+      </div>
+
+      <div class="glass-panel p-5 border border-[#CEEDE0] bg-[#EAF6F0]/40">
+        <div class="flex items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 class="text-sm font-bold text-[#3A3552] uppercase tracking-wider">Caretaker Accounts</h3>
+            <p class="text-xs text-[#8B87A3] mt-1">Create separate caretaker dashboards with username and password.</p>
+          </div>
+          <button onclick="openAddCaregiverModal()" class="btn-flame text-xs px-3 py-2 flex items-center gap-2">
+            <i data-lucide="user-plus" class="w-4 h-4"></i><span>Add Caretaker</span>
+          </button>
+        </div>
+        <div id="coordinator-caregiver-roster" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+      </div>
+
+      <!-- Action Bar: Prescription Management -->
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2">
+        <div>
+          <h2 class="text-2xl font-black text-[#3A3552] tracking-tight">Prescription Studio</h2>
+          <p class="text-xs text-[#8B87A3] mt-0.5">Select a caregiver's patient and configure prescriptions, instructions, and alarms.</p>
+        </div>
+      </div>
+
+      <!-- Two-Column Master Studio -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- LEFT COLUMN (4 cols): Patient Selector & Prescription Creator -->
+        <div class="lg:col-span-5 space-y-6">
+          
+          <!-- Patient Selector Roster -->
+          <div class="glass-panel p-5 border border-[#E3DEF2] bg-white space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold text-[#3A3552] uppercase tracking-wider flex items-center gap-2">
+                <i data-lucide="users-round" class="w-4 h-4 text-[#B8A6E8]"></i>
+                <span>Select Patient</span>
+              </h3>
+              <span class="text-[11px] text-[#8B87A3]">Click to load chart</span>
+            </div>
+            <div id="coordinator-patient-roster" class="space-y-2">
+              <!-- Dynamically rendered -->
+            </div>
+          </div>
+
+          <!-- CAREGIVER ASSIGNMENT -->
+          <div class="glass-panel p-5 border border-[#CEEDE0] bg-white space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold text-[#3A3552] uppercase tracking-wider flex items-center gap-2">
+                <i data-lucide="heart-handshake" class="w-4 h-4 text-[#62B89B]"></i>
+                <span>Assign Caregiver</span>
+              </h3>
+              <span class="text-[10px] text-[#8B87A3]">ntfy alerts enabled</span>
+            </div>
+            <p id="assigned-caregiver-display" class="text-xs text-[#3A3552]">No caregiver assigned</p>
+            <form onsubmit="assignCaregiver(event)" class="space-y-3">
+              <select id="caregiver-id" onchange="syncCaregiverName(this.value)" required
+                class="w-full px-4 py-2.5 rounded-xl glass-input text-xs sm:text-sm text-[#3A3552] bg-[#F7F5FB] border-[#E3DEF2]"></select>
+              <input type="hidden" id="caregiver-name">
+              <button type="submit" class="w-full btn-glass py-2.5 text-xs flex items-center justify-center gap-2">
+                <i data-lucide="user-round-check" class="w-4 h-4"></i>
+                Assign & Notify Caregivers
+              </button>
+            </form>
+          </div>
+
+          <!-- PRESCRIPTION & ALARM UPLOAD FORM -->
+          <div class="glass-panel p-6 border border-[#E3DEF2] bg-white space-y-5">
+            <div class="flex items-center justify-between pb-3 border-b border-[#E3DEF2]">
+              <h3 class="text-sm font-extrabold text-[#3A3552] uppercase tracking-wider flex items-center gap-2">
+                <i data-lucide="upload" class="w-4 h-4 text-[#B8A6E8]"></i>
+                <span>Deploy Prescription & Alarm</span>
+              </h3>
+              <span class="badge-flame text-[10px] px-2 py-0.5 rounded-full font-bold">Auto-Sync</span>
+            </div>
+
+            <form onsubmit="submitPrescription(event)" class="space-y-4">
+              
+              <!-- Select Target Patient -->
+              <div>
+                <label class="block text-xs font-bold text-[#3A3552] uppercase tracking-wider mb-1.5">
+                  Select Patient To Prescribe
+                </label>
+                <select id="rx-target-patient" onchange="selectPatient(this.value)" class="w-full px-4 py-2.5 rounded-xl glass-input text-xs sm:text-sm text-[#5D43A8] font-bold bg-[#F7F5FB] border-[#E3DEF2]">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+
+              <!-- Medicine Image Upload Area -->
+              <div>
+                <label class="block text-xs font-bold text-[#3A3552] uppercase tracking-wider mb-2">
+                  Upload Medicine Image
+                </label>
+                <div class="relative border-2 border-dashed border-[#B8A6E8]/50 rounded-2xl p-4 text-center hover:border-[#B8A6E8] transition bg-[#F7F5FB]">
+                  <input type="file" id="rx-image-file" accept="image/*" onchange="handleMedicineImageUpload(event)"
+                    class="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10">
+                  
+                  <div id="upload-placeholder" class="space-y-2 pointer-events-none">
+                    <div class="w-12 h-12 rounded-xl bg-[#B8A6E8]/15 text-[#6E54B5] mx-auto flex items-center justify-center">
+                      <i data-lucide="image-plus" class="w-6 h-6"></i>
+                    </div>
+                    <div class="text-xs text-[#3A3552] font-medium">Click or Drag & Drop Medicine Image</div>
+                    <div class="text-[10px] text-[#8B87A3]">Supports JPG, PNG, WebP</div>
+                  </div>
+
+                  <!-- Image Preview -->
+                  <img id="image-upload-preview" src="" alt="Preview" class="hidden w-24 h-24 object-contain mx-auto rounded-xl border border-[#B8A6E8] shadow-md">
+                </div>
+              </div>
+
+              <!-- Medicine Name -->
+              <div>
+                <label class="block text-xs font-bold text-[#3A3552] uppercase tracking-wider mb-1.5">Medicine Name</label>
+                <input type="text" id="rx-med-name" placeholder="e.g. Paracetamol 500mg, Amoxicillin" required
+                  class="w-full px-4 py-2.5 rounded-xl glass-input text-xs sm:text-sm text-[#3A3552] placeholder:text-[#8B87A3]">
+              </div>
+
+              <!-- Dosage -->
+              <div>
+                <label class="block text-xs font-bold text-[#3A3552] uppercase tracking-wider mb-1.5">Dosage / Quantity</label>
+                <input type="text" id="rx-med-dosage" placeholder="e.g. 1 Tablet, 5ml Syrup, 1 Capsule" required
+                  class="w-full px-4 py-2.5 rounded-xl glass-input text-xs sm:text-sm text-[#3A3552] placeholder:text-[#8B87A3]">
+              </div>
+
+              <!-- Instructions -->
+              <div>
+                <label class="block text-xs font-bold text-[#3A3552] uppercase tracking-wider mb-1.5">Food & Intake Instructions</label>
+                <input type="text" id="rx-med-instructions" placeholder="e.g. Take after dinner with warm water." required
+                  class="w-full px-4 py-2.5 rounded-xl glass-input text-xs sm:text-sm text-[#3A3552] placeholder:text-[#8B87A3]">
+              </div>
+
+              <!-- MAIN REQUIREMENT: Alarm Trigger Timing -->
+              <div class="p-4 rounded-xl bg-[#EAF6F0]/70 border border-[#CEEDE0] space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <label class="block text-xs font-extrabold text-[#3A3552] uppercase tracking-wider flex items-center gap-1.5">
+                    <i data-lucide="bell" class="w-3.5 h-3.5 text-[#5D43A8]"></i>
+                    <span>Alarm Trigger Timing (HH:MM)</span>
+                  </label>
+                  <span class="text-[10px] text-[#8B87A3] font-mono">24-hour format</span>
+                </div>
+
+                <input type="time" id="rx-alarm-time" required
+                  class="w-full px-4 py-2.5 rounded-xl glass-input text-sm font-mono text-[#3A3552] bg-white border-[#CEEDE0]">
+
+                <div>
+                  <label class="block text-[11px] font-bold text-[#96531C] uppercase tracking-wider mb-1.5">Acknowledgement Deadline (fixed)</label>
+                  <input type="number" id="rx-deadline-seconds" value="20" readonly aria-readonly="true"
+                    class="w-full px-4 py-2.5 rounded-xl glass-input text-sm font-mono text-[#96531C] bg-white border-[#FFD3B0]">
+                </div>
+
+                <!-- Fast Alarm Test Timing Helpers -->
+                <div class="flex items-center gap-2 pt-1">
+                  <span class="text-[11px] text-[#8B87A3]">Quick Test Timing:</span>
+                  <button type="button" onclick="setQuickAlarmTime(1)" class="btn-glass text-[10px] px-2.5 py-1 rounded-lg">
+                    +1 min from now
+                  </button>
+                  <button type="button" onclick="setQuickAlarmTime(2)" class="btn-glass text-[10px] px-2.5 py-1 rounded-lg">
+                    +2 min from now
+                  </button>
+                </div>
+              </div>
+
+              <div class="pt-2">
+                <button type="submit" class="w-full btn-flame py-3 text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg">
+                  <i data-lucide="send" class="w-4 h-4"></i>
+                  <span>Deploy to Patient Dashboard</span>
+                </button>
+              </div>
+
+            </form>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN (7 cols): Selected Patient Header & Current Schedule -->
+        <div class="lg:col-span-7 space-y-6">
+          
+          <!-- Selected Patient Information Card (Section Requirement) -->
+          <div class="glass-panel p-6 border border-[#E3DEF2] bg-white relative overflow-hidden">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div class="flex items-center gap-4">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#B8A6E8] to-[#A8D8F0] flex items-center justify-center text-[#3A3552] font-extrabold text-2xl shadow-lg shadow-[#C9BFF0]/30">
+                  <i data-lucide="user" class="w-9 h-9 text-[#3A3552]"></i>
+                </div>
+                <div>
+                  <span class="text-[10px] uppercase font-extrabold tracking-widest text-[#5D43A8] bg-[#B8A6E8]/20 px-2.5 py-0.5 rounded-md border border-[#B8A6E8]/40 inline-block mb-1">
+                    Active Patient Record
+                  </span>
+                  <h3 class="text-2xl font-black text-[#3A3552] flex items-center gap-2">
+                    <span id="selected-patient-name-display">Nandhini</span>
+                  </h3>
+                  <div class="flex items-center gap-3 text-xs text-[#8B87A3] font-mono mt-0.5">
+                    <span>Patient ID: <strong id="selected-patient-id-display" class="text-[#5D43A8]">nandhini2007</strong></span>
+                    <span>•</span>
+                    <span id="selected-patient-age-display">19 Yrs</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="text-right">
+                <span class="text-xs text-[#8B87A3] block font-medium">Primary Condition:</span>
+                <span id="selected-patient-condition-display" class="text-xs font-semibold text-[#3A3552]">General Health & Preventive Care</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Active Prescriptions and Scheduled Alarms for this Patient -->
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <h4 class="text-base font-bold text-[#3A3552] flex items-center gap-2">
+                <i data-lucide="calendar-clock" class="w-4 h-4 text-[#B8A6E8]"></i>
+                <span>Active Prescriptions & Scheduled Alarms</span>
+              </h4>
+              <span class="text-xs text-[#8B87A3]">Auto-synced to patient device</span>
+            </div>
+
+            <div id="selected-patient-rx-list" class="space-y-3">
+              <!-- Dynamically rendered -->
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <section class="glass-panel p-5 border border-[#FFD3B0] bg-white">
+        <div class="flex items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 class="text-lg font-black text-[#3A3552] flex items-center gap-2"><i data-lucide="mic" class="w-5 h-5 text-[#EFA66E]"></i>Caregiver Voice Updates</h3>
+            <p class="text-xs text-[#8B87A3] mt-1">Voice recordings received from caregivers.</p>
+          </div>
+          <span id="voice-note-count" class="badge-amber text-xs px-2 py-1 rounded-full">0 updates</span>
+        </div>
+        <div id="coordinator-voice-notes" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+      </section>
+
+    </main>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- 3. PATIENT DASHBOARD (NANDHINI / ABINAYA) -->
+  <!-- ========================================================================= -->
+  <section id="view-patient" class="hidden relative z-10 flex-1 flex flex-col min-h-screen">
+    
+    <!-- Top Glass Navigation Bar -->
+    <header class="glass-panel rounded-none border-x-0 border-t-0 px-6 py-4 sticky top-0 z-30 flex items-center justify-between shadow-sm bg-white/90 border-b border-[#E3DEF2]">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#B8A6E8] to-[#A8D8F0] flex items-center justify-center text-[#3A3552] font-extrabold shadow-md shadow-[#C9BFF0]/30">
+          <i data-lucide="heart" class="w-6 h-6 text-[#3A3552]"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-lg tracking-tight text-[#3A3552]">BREAK THROUGH AI</span>
+            <span class="badge-flame text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md">Caregiver Portal</span>
+          </div>
+          <span class="text-xs text-[#8B87A3]">Personalized Health Timeline</span>
+        </div>
+      </div>
+
+      <!-- Right Controls: Live Clock, Profile, Logout -->
+      <div class="flex items-center gap-4">
+        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#EAF6F0] border border-[#CEEDE0] text-xs font-mono text-[#3A3552]">
+          <i data-lucide="clock" class="w-3.5 h-3.5 text-[#5D43A8]"></i>
+          <span class="live-clock-display font-bold">00:00:00</span>
+        </div>
+
+        <div class="flex items-center gap-3 pl-3 border-l border-[#E3DEF2]">
+          <div class="w-9 h-9 rounded-xl bg-[#B8A6E8]/20 border border-[#B8A6E8]/40 flex items-center justify-center text-[#5D43A8] font-bold text-xs">
+            <i data-lucide="user-check" class="w-4 h-4"></i>
+          </div>
+          <div class="text-left">
+            <span id="patient-display-name" class="text-xs font-bold text-[#3A3552] block">Nandhini</span>
+            <span id="patient-display-id" class="text-[10px] text-[#8B87A3] font-mono">nandhini2007</span>
+          </div>
+        </div>
+
+        <button onclick="handleLogout()" class="btn-glass text-xs px-3.5 py-2 flex items-center gap-1.5 hover:border-[#FFB3B3] hover:text-[#9E2B2B]">
+          <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Sign Out</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Patient Content Body -->
+    <main class="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-6">
+
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-black text-[#3A3552]">My Patients</h2>
+          <p class="text-xs text-[#8B87A3] mt-1">Manage treatment details and review scheduled prescriptions.</p>
+        </div>
+        <button onclick="openAddPatientModal()" class="btn-flame text-xs px-4 py-2.5 flex items-center gap-2">
+          <i data-lucide="user-plus" class="w-4 h-4"></i><span>Add Patient</span>
+        </button>
+      </div>
+
+      <div id="caregiver-patient-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+
+      <section class="glass-panel p-5 border border-[#FFD3B0] bg-white">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 class="text-lg font-black text-[#3A3552] flex items-center gap-2">
+              <i data-lucide="mic" class="w-5 h-5 text-[#EFA66E]"></i>
+              Voice Updates
+            </h3>
+            <p class="text-xs text-[#8B87A3] mt-1">Click Start recording, speak your update, then click Stop recording.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="voice-status" class="text-xs text-[#8B87A3]">Ready to record</span>
+            <button id="voice-permission-button" onclick="requestVoicePermissions()" class="btn-glass text-xs px-3 py-2 flex items-center gap-2">
+              <i data-lucide="mic" class="w-4 h-4"></i><span>Allow microphone</span>
+            </button>
+            <button id="voice-record-button" onclick="startManualVoiceRecording()" class="btn-flame text-xs px-3 py-2 flex items-center gap-2">
+              <i data-lucide="mic" class="w-4 h-4"></i><span>Start recording</span>
+            </button>
+            <button id="voice-stop-button" onclick="stopVoiceRecording()" class="hidden btn-rose text-xs px-3 py-2 items-center gap-2">
+              <i data-lucide="square" class="w-4 h-4"></i><span>Stop recording</span>
+            </button>
+          </div>
+        </div>
+        <div id="voice-recording-indicator" class="hidden mt-4 p-3 rounded-xl bg-[#FFB3B3]/20 border border-[#FFB3B3] text-sm text-[#9E2B2B] flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-[#E87A7A] animate-pulse"></span> Recording voice update...
+        </div>
+      </section>
+
+      <!-- Caregiver Welcome Hero Banner -->
+      <div class="glass-panel p-6 sm:p-8 border border-[#E3DEF2] bg-white relative overflow-hidden">
+        <div class="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span class="badge-flame text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full inline-block mb-2">
+              Caregiver Care Timeline
+            </span>
+            <h2 class="text-3xl sm:text-4xl font-black text-[#3A3552] tracking-tight">
+              Welcome back, <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#B8A6E8] to-[#82C5E8] font-extrabold" id="patient-welcome-name">Nandhini</span> 👋
+            </h2>
+            <p class="text-sm text-[#8B87A3] mt-1 max-w-xl">
+              Select a patient above to review prescriptions, instructions, and scheduled caregiver alarms.
+            </p>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <div class="p-4 rounded-2xl bg-[#F7F5FB] border border-[#E3DEF2] text-center">
+              <span class="text-[10px] uppercase font-bold text-[#8B87A3] block">Assigned Doctor</span>
+              <span class="text-sm font-bold text-[#5D43A8]">Dr. Saranraj</span>
+            </div>
+            <div class="p-4 rounded-2xl bg-[#EAF6F0] border border-[#CEEDE0] text-center">
+              <span class="text-[10px] uppercase font-bold text-[#8B87A3] block">Alarm Sync</span>
+              <span class="text-sm font-bold text-[#246B52] flex items-center justify-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-[#62B89B] animate-pulse"></span> Active
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Prescriptions Section -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-xl font-extrabold text-[#3A3552] tracking-tight">Your Prescribed Medications</h3>
+            <p class="text-xs text-[#8B87A3]">Uploaded by Dr. Saranraj with exact alarm timings and images.</p>
+          </div>
+        </div>
+
+        <!-- Prescriptions Cards Grid -->
+        <div id="patient-prescriptions-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Dynamically populated from localStorage -->
+        </div>
+      </div>
+
+    </main>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- 4. HIGH-CONTRAST PASTEL ALARM MODAL -->
+  <!-- ========================================================================= -->
+  <div id="flame-alarm-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#3A3552]/75 backdrop-blur-md">
+    <div class="glass-panel w-full max-w-lg bg-white border-2 border-[#B8A6E8] overflow-hidden shadow-2xl relative animate-rise" style="box-shadow: var(--shadow-alarm);">
+      
+      <!-- Top Glowing Alarm Header -->
+      <div class="bg-gradient-to-r from-[#B8A6E8]/25 via-[#A8D8F0]/30 to-[#B8A6E8]/25 p-6 border-b border-[#E3DEF2] flex items-center justify-between">
+        <div class="flex items-center gap-3.5">
+          <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#B8A6E8] to-[#A8D8F0] text-[#3A3552] flex items-center justify-center font-extrabold alarm-flame-pulse shadow-lg shadow-[#C9BFF0]/50">
+            <i data-lucide="bell-ring" class="w-6 h-6 bell-shake-anim text-[#3A3552]"></i>
+          </div>
+          <div>
+            <span class="text-[10px] font-black uppercase tracking-widest text-[#5D43A8] bg-white px-2 py-0.5 rounded border border-[#B8A6E8]/40 inline-block">
+              Priority Healthcare Alarm
+            </span>
+            <h3 class="text-xl font-black text-[#3A3552] mt-0.5 tracking-tight">TIME FOR YOUR MEDICATION</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- Medicine Details Body -->
+      <div class="p-6 sm:p-8 space-y-6">
+        
+        <!-- Medicine Card Presentation with Uploaded Image -->
+        <div class="p-5 rounded-2xl bg-[#F7F5FB] border border-[#E3DEF2] flex items-center gap-5">
+          <div class="w-20 h-20 rounded-2xl bg-white border border-[#E3DEF2] overflow-hidden flex items-center justify-center p-2 shrink-0 shadow-sm">
+            <img id="alarm-rx-image" src="" alt="Medicine" class="w-full h-full object-contain">
+          </div>
+          <div class="flex-1 min-w-0">
+            <span class="text-[11px] font-extrabold uppercase tracking-wider text-[#5D43A8]">Prescription Dose</span>
+            <h2 id="alarm-rx-name" class="text-2xl font-black text-[#3A3552] tracking-tight truncate">PARACETAMOL</h2>
+            <div id="alarm-rx-dosage" class="text-sm font-bold text-[#6E54B5] mt-0.5">1 TABLET (500mg)</div>
+          </div>
+        </div>
+
+        <!-- Instructions & Time Grid -->
+        <div class="grid grid-cols-2 gap-3 text-xs sm:text-sm">
+          <div class="p-3.5 rounded-xl bg-[#F7F5FB] border border-[#E3DEF2]">
+            <span class="text-[#8B87A3] block text-xs font-semibold">Scheduled Alarm</span>
+            <span id="alarm-rx-time" class="font-mono font-extrabold text-[#5D43A8] text-base mt-0.5 block">20:00</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-[#F7F5FB] border border-[#E3DEF2]">
+            <span class="text-[#8B87A3] block text-xs font-semibold">Instructions</span>
+            <span id="alarm-rx-instructions" class="font-medium text-[#3A3552] text-xs mt-0.5 block truncate">Take after dinner.</span>
+          </div>
+        </div>
+
+        <p class="text-xs text-[#8B87A3] text-center">
+          Acknowledging immediately silences the alarm chime, marks your dose as TAKEN, and notifies Dr. Saranraj.
+        </p>
+
+        <!-- Massive High-Contrast ACKNOWLEDGE Button -->
+        <div>
+          <button onclick="acknowledgeAlarmMedication()" class="w-full btn-flame py-4 text-base font-black tracking-wider uppercase flex items-center justify-center gap-2 shadow-2xl">
+            <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+            <span>ACKNOWLEDGE MEDICATION</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 5. ADD PATIENT MODAL (COORDINATOR) -->
+  <!-- ========================================================================= -->
+  <div id="add-patient-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#3A3552]/60 backdrop-blur-sm">
+    <div class="glass-panel w-full max-w-md bg-white border border-[#E3DEF2] p-6 sm:p-8 space-y-5 shadow-2xl relative animate-rise">
+      
+      <div class="flex items-center justify-between pb-3 border-b border-[#E3DEF2]">
+        <h3 class="text-lg font-black text-[#3A3552] flex items-center gap-2">
+          <i data-lucide="user-plus" class="w-5 h-5 text-[#B8A6E8]"></i>
+          <span>Register New Patient</span>
+        </h3>
+        <button onclick="closeAddPatientModal()" class="text-[#8B87A3] hover:text-[#3A3552] p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="submitAddPatient(event)" class="space-y-4 text-xs sm:text-sm">
+        <div>
+          <label class="block font-bold text-[#3A3552] uppercase tracking-wider mb-1.5">Patient Full Name</label>
+          <input type="text" id="new-patient-name" placeholder="e.g. Rohith Kumar" required
+            class="w-full px-4 py-2.5 rounded-xl glass-input text-[#3A3552]">
+        </div>
+
+        <div>
+          <label class="block font-bold text-[#3A3552] uppercase tracking-wider mb-1.5">Treatment Type</label>
+          <input type="text" id="new-patient-condition" placeholder="e.g. physiotherapy, diabetes care" required
+            class="w-full px-4 py-2.5 rounded-xl glass-input text-[#3A3552]">
+        </div>
+
+        <div class="pt-3 flex gap-3">
+          <button type="button" onclick="closeAddPatientModal()" class="flex-1 btn-glass py-2.5">
+            Cancel
+          </button>
+          <button type="submit" class="flex-1 btn-flame py-2.5">
+            Create Profile
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <div id="add-caregiver-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#3A3552]/60 backdrop-blur-sm">
+    <div class="glass-panel w-full max-w-md bg-white border border-[#CEEDE0] p-6 sm:p-8 space-y-5 shadow-2xl relative animate-rise">
+      <div class="flex items-center justify-between pb-3 border-b border-[#E3DEF2]">
+        <h3 class="text-lg font-black text-[#3A3552] flex items-center gap-2"><i data-lucide="user-plus" class="w-5 h-5 text-[#62B89B]"></i><span>Add Caretaker</span></h3>
+        <button onclick="closeAddCaregiverModal()" class="text-[#8B87A3] hover:text-[#3A3552] p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form onsubmit="submitAddCaregiver(event)" class="space-y-4 text-xs sm:text-sm">
+        <div>
+          <label class="block font-bold text-[#3A3552] uppercase tracking-wider mb-1.5">Caregiver Username</label>
+          <input type="text" id="new-caregiver-id" required class="w-full px-4 py-2.5 rounded-xl glass-input text-[#3A3552] font-mono" placeholder="e.g. kavipriya2008">
+        </div>
+        <div>
+          <label class="block font-bold text-[#3A3552] uppercase tracking-wider mb-1.5">Password</label>
+          <input type="password" id="new-caregiver-password" required class="w-full px-4 py-2.5 rounded-xl glass-input text-[#3A3552]" placeholder="Create a password">
+        </div>
+        <div class="pt-3 flex gap-3">
+          <button type="button" onclick="closeAddCaregiverModal()" class="flex-1 btn-glass py-2.5">Cancel</button>
+          <button type="submit" class="flex-1 btn-flame py-2.5">Create Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification Stack -->
+  <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 pointer-events-none max-w-sm w-full"></div>
+
+  <!-- Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
