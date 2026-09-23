@@ -723,10 +723,14 @@
 
       <!-- Prescriptions Section -->
       <div class="space-y-4">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 class="text-xl font-extrabold text-[#3A3552] tracking-tight">Your Prescribed Medications</h3>
-            <p class="text-xs text-[#8B87A3]">Uploaded by Dr. Saranraj with exact alarm timings and images.</p>
+            <h3 class="text-xl font-extrabold text-[#3A3552] tracking-tight">Prescribed Medications</h3>
+            <p class="text-xs text-[#8B87A3]" id="prescriptions-section-subtitle">Uploaded by Dr. Saranraj with exact alarm timings and images.</p>
+          </div>
+          <!-- Quick Patient Tabs -->
+          <div id="caregiver-rx-tabs" class="flex flex-wrap items-center gap-1.5 p-1 bg-[#F7F5FB] rounded-xl border border-[#E3DEF2]">
+            <!-- Dynamically populated -->
           </div>
         </div>
 

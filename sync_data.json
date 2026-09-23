@@ -1,1 +1,1 @@
-{"patients": [], "caregivers": [], "voiceNotes": []}
+{"patients":[{"id":"patient-1790147011546","name":"ram","age":19,"condition":"physiotherapy","joinedDate":"Today","caregiverId":"nandhini2007","caregiver":{"id":"nandhini2007","name":"Nandhini"},"prescriptions":[]},{"id":"patient-1790148021308","name":"sam","age":13,"condition":"physiotherapy","joinedDate":"Today","caregiverId":"nandhini2007","caregiver":{"name":"Nandhini","id":"nandhini2007"},"prescriptions":[]}],"caregivers":[{"id":"nandhini2007","name":"Nandhini","password":"nandi2007"}],"voiceNotes":[]}

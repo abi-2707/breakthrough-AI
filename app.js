@@ -236,6 +236,7 @@ const appState = {
   pendingCaregiverId: '',
   uploadedImageBase64: null,
   activeAlarmRx: null,
+  activeAlarmPatientId: '',
   alarmAudioNodes: [],
   alarmSpeechInterval: null,
   alarmDeadlineTimer: null,
@@ -975,8 +976,10 @@ function openAddPatientModal() {
       if (appState.currentUser && appState.currentUser.role === 'coordinator') {
         cgGroup.classList.remove('hidden');
         const caregivers = getCaregivers();
-        cgSelect.innerHTML = '<option value="">No caregiver assigned initially</option>' +
-          caregivers.map(cg => `<option value="${cg.id}">${cg.name} (${cg.id})</option>`).join('');
+        // If there's only 1 caregiver, pre-select it so it's assigned by default
+        cgSelect.innerHTML = caregivers.map((cg, idx) => 
+          `<option value="${cg.id}" ${idx === 0 ? 'selected' : ''}>${cg.name} (${cg.id})</option>`
+        ).join('') + '<option value="">No caregiver assigned initially</option>';
       } else {
         cgGroup.classList.add('hidden');
       }
@@ -1015,15 +1018,20 @@ function submitAddPatient(e) {
   let caregiverObj = null;
 
   if (appState.currentUser.role === 'caregiver') {
-    caregiverId = appState.currentUser.id;
-    caregiverObj = { id: appState.currentUser.id, name: appState.currentUser.name };
+    caregiverId = appState.currentUser.id.toLowerCase();
+    caregiverObj = { id: caregiverId, name: appState.currentUser.name };
   } else if (appState.currentUser.role === 'coordinator') {
     const cgSelect = document.getElementById('new-patient-caregiver-select');
-    const selectedCgId = cgSelect ? cgSelect.value : '';
+    let selectedCgId = cgSelect ? cgSelect.value.trim().toLowerCase() : '';
+    const allCaregivers = getCaregivers();
+    // If only 1 caregiver registered and none explicitly selected, default to that caregiver
+    if (!selectedCgId && allCaregivers.length === 1) {
+      selectedCgId = allCaregivers[0].id.toLowerCase();
+    }
     if (selectedCgId) {
-      const foundCg = getCaregivers().find(c => c.id === selectedCgId);
+      const foundCg = allCaregivers.find(c => c.id.toLowerCase() === selectedCgId);
       caregiverId = selectedCgId;
-      caregiverObj = foundCg ? { id: foundCg.id, name: foundCg.name } : { id: selectedCgId, name: selectedCgId };
+      caregiverObj = foundCg ? { id: foundCg.id.toLowerCase(), name: foundCg.name } : { id: selectedCgId, name: selectedCgId };
     }
   }
 
@@ -1361,6 +1369,7 @@ function triggerAlarmByRxId(rxId, targetPatientId) {
 
 function triggerAlarmForPrescription(rx, patientName, patientId) {
   appState.activeAlarmRx = rx;
+  appState.activeAlarmPatientId = patientId;
   const modal = document.getElementById('flame-alarm-modal');
   if (!modal) return;
 
@@ -1412,8 +1421,14 @@ function acknowledgeAlarmMedication() {
   if (!appState.activeAlarmRx || !appState.currentUser) return;
 
   const rxId = appState.activeAlarmRx.id;
+  const targetPid = (appState.activeAlarmPatientId || appState.selectedPatientId || '').toLowerCase();
   const patients = getPatients();
-  const patient = patients.find(p => p.id === appState.selectedPatientId && p.caregiverId === appState.currentUser.id);
+  
+  // Find patient by targetPid or search for patient containing this rxId
+  let patient = patients.find(p => p.id.toLowerCase() === targetPid);
+  if (!patient) {
+    patient = patients.find(p => (p.prescriptions || []).some(r => r.id === rxId));
+  }
 
   if (patient && patient.prescriptions) {
     const rx = patient.prescriptions.find(r => r.id === rxId);
@@ -1430,15 +1445,27 @@ function acknowledgeAlarmMedication() {
 
   showGlassToast(`✓ ${appState.currentUser.name} confirmed taking ${appState.activeAlarmRx.name}! Status synced to Dr. Saranraj.`, 'success', 'Medication Acknowledged');
   appState.activeAlarmRx = null;
+  appState.activeAlarmPatientId = '';
   renderPatientDashboard();
 }
 
 // Manual Take Now button
-function manualTakeMedication(rxId) {
+function manualTakeMedication(rxId, explicitPatientId) {
   if (!appState.currentUser || appState.currentUser.role !== 'caregiver') return;
 
   const patients = getPatients();
-  const patient = patients.find(p => p.id === appState.selectedPatientId && p.caregiverId === appState.currentUser.id);
+  let patient = null;
+
+  if (explicitPatientId) {
+    patient = patients.find(p => p.id.toLowerCase() === explicitPatientId.toLowerCase());
+  }
+  if (!patient && appState.selectedPatientId && appState.selectedPatientId !== 'all') {
+    patient = patients.find(p => p.id.toLowerCase() === appState.selectedPatientId.toLowerCase());
+  }
+  if (!patient) {
+    patient = patients.find(p => (p.prescriptions || []).some(r => r.id === rxId));
+  }
+
   if (!patient || !patient.prescriptions) return;
 
   const rx = patient.prescriptions.find(r => r.id === rxId);
@@ -1452,7 +1479,7 @@ function manualTakeMedication(rxId) {
   rx.confirmedAt = `${hours % 12 || 12}:${minutes} ${ampm}`;
   savePatients(patients);
 
-  showGlassToast(`✓ Marked ${rx.name} as TAKEN. Recorded at ${rx.confirmedAt}.`, 'success');
+  showGlassToast(`✓ Marked ${rx.name} (${patient.name}) as TAKEN. Recorded at ${rx.confirmedAt}.`, 'success');
   renderPatientDashboard();
 }
 
@@ -1717,10 +1744,10 @@ function renderPatientDashboard() {
   if (!appState.currentUser || appState.currentUser.role !== 'caregiver') return;
 
   const patients = getVisibleCaregiverPatients();
-  let patient = patients.find(p => p.id === appState.selectedPatientId);
-  if (!patient && patients.length > 0) {
-    patient = patients[0];
-    appState.selectedPatientId = patient.id;
+  
+  // Support 'all' view or specific patient
+  if (!appState.selectedPatientId || (appState.selectedPatientId !== 'all' && !patients.some(p => p.id === appState.selectedPatientId))) {
+    appState.selectedPatientId = 'all';
   }
 
   const nameEl = document.getElementById('patient-display-name');
@@ -1737,20 +1764,79 @@ function renderPatientDashboard() {
     topicCodeEl.textContent = caregiverTopic(appState.currentUser.id);
   }
 
-  // Render Patient's Prescriptions Cards
+  // Render Patient Quick Filter Tabs
+  const rxTabsContainer = document.getElementById('caregiver-rx-tabs');
+  if (rxTabsContainer) {
+    const totalAllRxs = patients.reduce((acc, p) => acc + (p.prescriptions ? p.prescriptions.length : 0), 0);
+    const isAll = appState.selectedPatientId === 'all';
+    
+    let tabsHtml = `
+      <button onclick="appState.selectedPatientId='all'; renderPatientDashboard()" class="text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${
+        isAll ? 'bg-white text-[#5D43A8] shadow-sm border border-[#B8A6E8]' : 'text-[#8B87A3] hover:text-[#3A3552]'
+      }">
+        <span>All Patients</span>
+        <span class="px-1.5 py-0.2 rounded-full text-[10px] ${isAll ? 'bg-[#B8A6E8]/20 text-[#5D43A8]' : 'bg-[#E3DEF2] text-[#3A3552]'} font-extrabold">${totalAllRxs}</span>
+      </button>
+    `;
+
+    patients.forEach(p => {
+      const isSelected = appState.selectedPatientId === p.id;
+      const count = (p.prescriptions || []).length;
+      const pendingCount = (p.prescriptions || []).filter(r => r.status === 'pending').length;
+      tabsHtml += `
+        <button onclick="appState.selectedPatientId='${p.id}'; renderPatientDashboard()" class="text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${
+          isSelected ? 'bg-white text-[#5D43A8] shadow-sm border border-[#B8A6E8]' : 'text-[#8B87A3] hover:text-[#3A3552]'
+        }">
+          <span>${p.name}</span>
+          <span class="px-1.5 py-0.2 rounded-full text-[10px] ${pendingCount > 0 ? 'badge-amber' : 'bg-[#E3DEF2] text-[#3A3552]'} font-extrabold">${count}</span>
+        </button>
+      `;
+    });
+
+    rxTabsContainer.innerHTML = tabsHtml;
+  }
+
+  // Subtitle update
+  const subtitleEl = document.getElementById('prescriptions-section-subtitle');
+  if (subtitleEl) {
+    if (appState.selectedPatientId === 'all') {
+      subtitleEl.textContent = `Showing all scheduled prescriptions across your ${patients.length} assigned patient(s).`;
+    } else {
+      const activeP = patients.find(p => p.id === appState.selectedPatientId);
+      subtitleEl.textContent = activeP ? `Showing prescriptions scheduled for ${activeP.name} (${activeP.condition || 'General Care'}).` : 'Medication schedule.';
+    }
+  }
+
+  // Compile list of prescriptions to render
+  let displayPrescriptions = [];
+  if (appState.selectedPatientId === 'all') {
+    patients.forEach(p => {
+      (p.prescriptions || []).forEach(rx => {
+        displayPrescriptions.push({ ...rx, patientName: p.name, patientId: p.id });
+      });
+    });
+  } else {
+    const activeP = patients.find(p => p.id === appState.selectedPatientId);
+    if (activeP) {
+      (activeP.prescriptions || []).forEach(rx => {
+        displayPrescriptions.push({ ...rx, patientName: activeP.name, patientId: activeP.id });
+      });
+    }
+  }
+
+  // Render Prescriptions Cards
   const container = document.getElementById('patient-prescriptions-grid');
   if (container) {
-    const pRxs = patient ? (patient.prescriptions || []) : [];
-    if (pRxs.length === 0) {
+    if (displayPrescriptions.length === 0) {
       container.innerHTML = `
         <div class="col-span-full p-12 text-center rounded-2xl glass-panel bg-white border-dashed border-[#E3DEF2]">
           <i data-lucide="clipboard-x" class="w-12 h-12 mx-auto text-[#B8A6E8] mb-3 opacity-60"></i>
-          <h4 class="text-lg font-bold text-[#3A3552]">${patient ? `No prescriptions for ${patient.name}` : 'Your patient list is empty'}</h4>
-          <p class="text-sm text-[#8B87A3] mt-1">${patient ? 'The coordinator will upload medication schedules and alarm timings here.' : 'Use Add Patient to create the first patient record.'}</p>
+          <h4 class="text-lg font-bold text-[#3A3552]">${patients.length === 0 ? 'Your patient roster is empty' : 'No prescriptions scheduled yet'}</h4>
+          <p class="text-sm text-[#8B87A3] mt-1">${patients.length === 0 ? 'Use Add Patient to register your first patient.' : 'When Dr. Saranraj uploads prescriptions, they appear here automatically.'}</p>
         </div>
       `;
     } else {
-      container.innerHTML = pRxs.map(rx => {
+      container.innerHTML = displayPrescriptions.map(rx => {
         const isTaken = rx.status === 'taken';
 
         return `
@@ -1763,9 +1849,14 @@ function renderPatientDashboard() {
                 <div class="w-16 h-16 rounded-2xl bg-[#F7F5FB] border border-[#E3DEF2] overflow-hidden flex items-center justify-center p-2 shadow-inner">
                   <img src="${rx.imageUrl}" alt="${rx.name}" class="w-full h-full object-contain">
                 </div>
-                <span class="text-xs font-semibold px-3 py-1 rounded-full ${isTaken ? 'badge-emerald' : 'badge-amber'} flex items-center gap-1.5">
-                  ${isTaken ? `<i data-lucide="check" class="w-3.5 h-3.5"></i> Taken` : `<i data-lucide="clock" class="w-3.5 h-3.5"></i> Alarm at ${rx.alarmTime}`}
-                </span>
+                <div class="text-right flex flex-col items-end gap-1">
+                  <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#B8A6E8]/20 text-[#5D43A8] border border-[#B8A6E8]/40">
+                    Patient: ${rx.patientName}
+                  </span>
+                  <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full ${isTaken ? 'badge-emerald' : 'badge-amber'} flex items-center gap-1">
+                    ${isTaken ? `<i data-lucide="check" class="w-3.5 h-3.5"></i> Taken` : `<i data-lucide="clock" class="w-3.5 h-3.5"></i> Alarm at ${rx.alarmTime}`}
+                  </span>
+                </div>
               </div>
 
               <h4 class="text-xl font-extrabold text-[#3A3552] tracking-tight">${rx.name}</h4>
@@ -1794,7 +1885,7 @@ function renderPatientDashboard() {
             </div>
 
             <div class="mt-6 pt-4 border-t border-[#E3DEF2] flex items-center justify-between gap-2">
-              <button onclick="triggerAlarmByRxId('${rx.id}', '${patient.id}')" class="btn-glass text-xs px-3 py-2 flex items-center gap-1.5">
+              <button onclick="triggerAlarmByRxId('${rx.id}', '${rx.patientId}')" class="btn-glass text-xs px-3 py-2 flex items-center gap-1.5">
                 <i data-lucide="bell-ring" class="w-3.5 h-3.5"></i> Test Ring
               </button>
               
@@ -1803,7 +1894,7 @@ function renderPatientDashboard() {
                   <i data-lucide="check-check" class="w-4 h-4"></i> Complete
                 </span>
               ` : `
-                <button onclick="manualTakeMedication('${rx.id}')" class="btn-flame text-xs px-4 py-2 flex items-center gap-1.5 shadow-md">
+                <button onclick="manualTakeMedication('${rx.id}', '${rx.patientId}')" class="btn-flame text-xs px-4 py-2 flex items-center gap-1.5 shadow-md">
                   <i data-lucide="check" class="w-4 h-4"></i> Mark Taken
                 </button>
               `}
@@ -1819,7 +1910,10 @@ function renderPatientDashboard() {
     patientList.innerHTML = patients.length ? patients.map(item => `
       <div class="p-4 rounded-xl border ${item.id === appState.selectedPatientId ? 'border-[#B8A6E8] bg-[#B8A6E8]/15' : 'border-[#E3DEF2] bg-white'} flex items-center justify-between gap-3 shadow-sm">
         <button onclick="appState.selectedPatientId='${item.id}'; renderPatientDashboard()" class="flex-1 text-left">
-          <strong class="block text-[#3A3552]">${item.name}</strong>
+          <div class="flex items-center gap-2">
+            <strong class="block text-[#3A3552]">${item.name}</strong>
+            <span class="px-2 py-0.5 text-[10px] rounded-full font-bold bg-[#B8A6E8]/20 text-[#5D43A8]">${(item.prescriptions || []).length} Rx</span>
+          </div>
           <span class="text-xs text-[#5D43A8]">${item.condition || 'Treatment not specified'}</span>
         </button>
         <div class="flex items-center gap-1">
@@ -1834,8 +1928,71 @@ function renderPatientDashboard() {
 }
 
 // -------------------------------------------------------------
-// INITIALIZATION
+// INITIALIZATION & RESILIENT DEEP MERGE
 // -------------------------------------------------------------
+function mergePatients(localList, remoteList) {
+  const mergedMap = new Map();
+
+  // 1. Add all local patients first
+  (localList || []).forEach(p => {
+    if (p && p.id) {
+      mergedMap.set(p.id.toLowerCase(), { ...p, prescriptions: Array.isArray(p.prescriptions) ? [...p.prescriptions] : [] });
+    }
+  });
+
+  // 2. Merge with remote patients
+  (remoteList || []).forEach(remoteP => {
+    if (!remoteP || !remoteP.id) return;
+    const key = remoteP.id.toLowerCase();
+    if (!mergedMap.has(key)) {
+      mergedMap.set(key, { ...remoteP, prescriptions: Array.isArray(remoteP.prescriptions) ? [...remoteP.prescriptions] : [] });
+      return;
+    }
+
+    const localP = mergedMap.get(key);
+
+    // Merge patient metadata: prefer defined values
+    const mergedP = {
+      ...localP,
+      name: remoteP.name || localP.name,
+      age: remoteP.age || localP.age,
+      condition: remoteP.condition || localP.condition,
+      joinedDate: remoteP.joinedDate || localP.joinedDate,
+      // If remote has caregiver assignment, keep it; if local has it, keep it
+      caregiverId: remoteP.caregiverId || localP.caregiverId,
+      caregiver: remoteP.caregiver || localP.caregiver
+    };
+
+    // Deep merge prescriptions by rx.id
+    const rxMap = new Map();
+    (localP.prescriptions || []).forEach(rx => {
+      if (rx && rx.id) rxMap.set(rx.id, { ...rx });
+    });
+
+    (remoteP.prescriptions || []).forEach(remoteRx => {
+      if (!remoteRx || !remoteRx.id) return;
+      if (!rxMap.has(remoteRx.id)) {
+        rxMap.set(remoteRx.id, { ...remoteRx });
+      } else {
+        const localRx = rxMap.get(remoteRx.id);
+        // If either status is 'taken', status is taken!
+        const isTaken = localRx.status === 'taken' || remoteRx.status === 'taken';
+        rxMap.set(remoteRx.id, {
+          ...localRx,
+          ...remoteRx,
+          status: isTaken ? 'taken' : (remoteRx.status || localRx.status),
+          confirmedAt: localRx.confirmedAt || remoteRx.confirmedAt || null
+        });
+      }
+    });
+
+    mergedP.prescriptions = Array.from(rxMap.values());
+    mergedMap.set(key, mergedP);
+  });
+
+  return Array.from(mergedMap.values());
+}
+
 async function refreshPatientsFromServer() {
   if (networkSyncInFlight) return;
   try {
@@ -1843,16 +2000,19 @@ async function refreshPatientsFromServer() {
     if (!response.ok) return;
     const remote = await response.json();
     const hasRemoteData = (remote.patients && remote.patients.length) || (remote.caregivers && remote.caregivers.length) || (remote.voiceNotes && remote.voiceNotes.length);
-    const hasLocalData = getPatients().length || getCaregivers().length > 1 || getVoiceNotes().length;
+    const localPatients = getPatients();
+    const localCaregivers = getCaregivers();
+    const localNotes = getVoiceNotes();
+    const hasLocalData = localPatients.length || localCaregivers.length > 1 || localNotes.length;
 
     if (hasRemoteData) {
-      if (Array.isArray(remote.patients) && remote.patients.length > 0) {
-        localStorage.setItem(STORAGE_PATIENTS_KEY, JSON.stringify(remote.patients));
+      if (Array.isArray(remote.patients)) {
+        const mergedPatients = mergePatients(localPatients, remote.patients);
+        localStorage.setItem(STORAGE_PATIENTS_KEY, JSON.stringify(mergedPatients));
       }
       if (Array.isArray(remote.caregivers) && remote.caregivers.length > 0) {
-        const localCg = getCaregivers();
         const mergedMap = new Map();
-        localCg.forEach(cg => mergedMap.set(cg.id.toLowerCase(), cg));
+        localCaregivers.forEach(cg => mergedMap.set(cg.id.toLowerCase(), cg));
         remote.caregivers.forEach(cg => {
           if (!mergedMap.has(cg.id.toLowerCase())) {
             mergedMap.set(cg.id.toLowerCase(), cg);
@@ -1861,7 +2021,10 @@ async function refreshPatientsFromServer() {
         localStorage.setItem(STORAGE_CAREGIVERS_KEY, JSON.stringify(Array.from(mergedMap.values())));
       }
       if (Array.isArray(remote.voiceNotes) && remote.voiceNotes.length > 0) {
-        localStorage.setItem(STORAGE_VOICE_NOTES_KEY, JSON.stringify(remote.voiceNotes));
+        const mergedNotesMap = new Map();
+        localNotes.forEach(n => mergedNotesMap.set(n.id, n));
+        remote.voiceNotes.forEach(n => mergedNotesMap.set(n.id, n));
+        localStorage.setItem(STORAGE_VOICE_NOTES_KEY, JSON.stringify(Array.from(mergedNotesMap.values())));
       }
       window.dispatchEvent(new CustomEvent('carehub-data-updated'));
       return;
