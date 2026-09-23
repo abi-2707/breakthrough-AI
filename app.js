@@ -335,88 +335,113 @@ function stopMedicationAlert() {
   }
 }
 
+function persistEscalationStatus(patientId, rxId) {
+  const patients = getPatients();
+  const savedPatient = patients.find(item => item.id.toLowerCase() === (patientId || '').toLowerCase());
+  const savedRx = savedPatient && (savedPatient.prescriptions || []).find(item => item.id === rxId);
+  if (savedRx) {
+    savedRx.escalationSent = true;
+    savePatients(patients);
+  }
+}
+
+async function requestFormSubmitActivation() {
+  showGlassToast(`Requesting activation from FormSubmit for ${FORM_SUBMIT_EMAIL}...`, 'info', 'Email Setup');
+
+  const payload = {
+    name: 'Dr. Saranraj (Clinical Coordinator)',
+    email: FORM_SUBMIT_EMAIL,
+    _replyto: FORM_SUBMIT_EMAIL,
+    _subject: 'BREAK THROUGH AI Clinical Email Activation',
+    _template: 'table',
+    message: 'Official activation request for BREAK THROUGH AI automated clinical escalation emails. Click "Activate Form" below to enable emergency medication alerts.'
+  };
+
+  try {
+    const response = await fetch(`https://formsubmit.co/ajax/${FORM_SUBMIT_EMAIL}`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+
+    if (result && result.message && result.message.toLowerCase().includes('activation')) {
+      showGlassToast(`✓ Fresh activation email sent to ${FORM_SUBMIT_EMAIL}! Open your inbox/spam and click "Activate Form".`, 'success', 'Activation Sent');
+    } else if (response.ok && (result.success === true || result.success === 'true')) {
+      showGlassToast(`✓ Email alerts are ACTIVE and verified for ${FORM_SUBMIT_EMAIL}!`, 'success', 'Email Verified');
+    } else {
+      showGlassToast(result.message || 'FormSubmit response received.', 'info', 'Email Setup');
+    }
+  } catch (err) {
+    console.warn('Activation request error:', err);
+    showGlassToast('Network error contacting email service. Please try again.', 'error');
+  }
+}
+
 async function sendMissedDoseEmail(patient, rx) {
   if (!patient || !rx || rx.escalationSent) return false;
 
   const caregiver = patient.caregiver ? `${patient.caregiver.name} (${patient.caregiver.id})` : 'Not assigned';
-  const emailData = new URLSearchParams({
-    _subject: `BREAK THROUGH AI missed medication: ${rx.name}`,
+  const emailPayload = {
+    name: 'BREAK THROUGH AI Emergency Alert',
+    email: 'alerts@breakthrough-ai.com',
+    _replyto: 'alerts@breakthrough-ai.com',
+    _subject: `EMERGENCY ALERT: Missed medication ${rx.name} - Patient ${patient.name}`,
     _captcha: 'false',
+    _template: 'table',
     patient_name: patient.name,
     patient_id: patient.id,
-    patient_age: String(patient.age || ''),
-    patient_condition: patient.condition || '',
+    patient_age: String(patient.age || 'Not specified'),
+    patient_condition: patient.condition || 'Not specified',
     medicine: rx.name,
     dosage: rx.dosage,
     instructions: rx.instructions,
-    scheduled_time: rx.alarmTime,
-    acknowledgement_deadline_seconds: String(MEDICATION_DEADLINE_SECONDS),
+    scheduled_alarm_time: rx.alarmTime,
+    deadline_seconds: String(MEDICATION_DEADLINE_SECONDS),
     assigned_caregiver: caregiver,
-    message: `The patient did not acknowledge ${rx.name} before the ${MEDICATION_DEADLINE_SECONDS}-second deadline.`
-  });
+    alert_time: new Date().toLocaleString(),
+    message: `CRITICAL ALERT: Patient ${patient.name} (${patient.id}) did not acknowledge scheduled medication ${rx.name} (${rx.dosage}) within ${MEDICATION_DEADLINE_SECONDS} seconds.`
+  };
 
-  let lastError = null;
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    try {
-      const response = await fetch(`https://formsubmit.co/ajax/${FORM_SUBMIT_EMAIL}`, {
-        method: 'POST',
-        cache: 'no-store',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: emailData
-      });
-      const result = await response.json();
-      if (!response.ok || (result.success !== true && result.success !== 'true')) {
-        throw new Error(result.message || `FormSubmit returned ${response.status}`);
-      }
+  try {
+    const response = await fetch(`https://formsubmit.co/ajax/${FORM_SUBMIT_EMAIL}`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(emailPayload)
+    });
 
+    const result = await response.json();
+
+    // Check if FormSubmit requires initial confirmation
+    if (result && result.message && result.message.toLowerCase().includes('activation')) {
       rx.escalationSent = true;
-      const patients = getPatients();
-      const savedPatient = patients.find(item => item.id.toLowerCase() === patient.id.toLowerCase());
-      const savedRx = savedPatient && (savedPatient.prescriptions || []).find(item => item.id === rx.id);
-      if (savedRx) {
-        savedRx.escalationSent = true;
-        savePatients(patients);
-      }
-      showGlassToast(`Email sent to ${FORM_SUBMIT_EMAIL} for unacknowledged ${rx.name}.`, 'error', 'Deadline Reached');
+      persistEscalationStatus(patient.id, rx.id);
+      showGlassToast(`FormSubmit activation link sent to ${FORM_SUBMIT_EMAIL}. Please check your inbox and click "Activate Form".`, 'info', 'Activation Required');
       return true;
-    } catch (error) {
-      lastError = error;
-      console.warn(`FormSubmit email attempt ${attempt} failed:`, error);
-      if (attempt < 3) await new Promise(resolve => setTimeout(resolve, 1500));
     }
-  }
 
-  const iframe = document.createElement('iframe');
-  iframe.name = `formsubmit-mail-fallback-${Date.now()}`;
-  iframe.hidden = true;
-  document.body.appendChild(iframe);
-  const form = document.createElement('form');
-  form.method = 'POST';
-  form.action = `https://formsubmit.co/${FORM_SUBMIT_EMAIL}`;
-  form.target = iframe.name;
-  form.hidden = true;
-  emailData.set('_template', 'table');
-  emailData.forEach((value, key) => {
-    const input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = key;
-    input.value = value;
-    form.appendChild(input);
-  });
-  document.body.appendChild(form);
-  form.submit();
-  rx.escalationSent = true;
-  const fallbackPatients = getPatients();
-  const fallbackPatient = fallbackPatients.find(item => item.id.toLowerCase() === patient.id.toLowerCase());
-  const fallbackRx = fallbackPatient && (fallbackPatient.prescriptions || []).find(item => item.id === rx.id);
-  if (fallbackRx) {
-    fallbackRx.escalationSent = true;
-    savePatients(fallbackPatients);
+    if (response.ok && (result.success === true || result.success === 'true')) {
+      rx.escalationSent = true;
+      persistEscalationStatus(patient.id, rx.id);
+      showGlassToast(`Emergency alert email sent to ${FORM_SUBMIT_EMAIL} for unacknowledged ${rx.name}.`, 'error', 'Deadline Reached');
+      return true;
+    }
+
+    console.warn('FormSubmit returned notice:', result);
+    rx.escalationSent = true;
+    persistEscalationStatus(patient.id, rx.id);
+    return false;
+  } catch (error) {
+    console.warn('FormSubmit email send failed:', error);
+    return false;
   }
-  showGlassToast(`Email fallback submitted to ${FORM_SUBMIT_EMAIL}.`, 'error', 'Deadline Reached');
-  setTimeout(() => { iframe.remove(); form.remove(); }, 10000);
-  console.warn('FormSubmit AJAX failed; native form fallback submitted:', lastError);
-  return true;
 }
 
 function handleMedicationDeadline(rx, patientId) {
